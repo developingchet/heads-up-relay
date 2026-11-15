@@ -1,0 +1,8 @@
+{
+  "name": "heads-up-relay-ci",
+  "private": true,
+  "description": "The Claude Code release CI tests the relay against, pinned by the lockfile beside it.",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.325"
+  }
+}

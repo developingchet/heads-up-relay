@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.1 - 2026-11-14
+## 0.0.1 - 2026-11-15
 
 First release.
 
@@ -15,3 +15,4 @@ First release.
   (2.1.325).
 - `log` mode writes notes to the transcript only; `off` registers no hooks.
 - `scripts/reactions.mjs` prints what the main agent did after each note in a session's transcript.
+- Released as a zip with a checksum file, both signed with cosign.

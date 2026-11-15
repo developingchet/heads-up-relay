@@ -10,9 +10,11 @@ permissions:
   contents: read
 
 env:
-  # The release the relay is checked against; keep in step with CHECKED_RELEASE in hooks/register.ts.
-  CLAUDE_CODE_VERSION: 2.1.325
   DISABLE_AUTOUPDATER: '1'
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   test:
@@ -27,17 +29,30 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      # The Claude Code release the relay is checked against, pinned by
+      # .github/ci/package-lock.json; keep it in step with CHECKED_RELEASE in
+      # hooks/register.ts.
       - name: Install Claude Code
-        if: runner.os != 'Windows'
         run: |
-          curl -fsSL https://claude.ai/install.sh | bash -s "$CLAUDE_CODE_VERSION"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Install Claude Code
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          & ([scriptblock]::Create((irm https://claude.ai/install.ps1))) $env:CLAUDE_CODE_VERSION
-          Add-Content -Path $env:GITHUB_PATH -Value "$env:USERPROFILE\.local\bin"
+          npm ci --prefix .github/ci --no-audit --no-fund
+          echo "$GITHUB_WORKSPACE/.github/ci/node_modules/.bin" >> "$GITHUB_PATH"
       - run: claude --version
       - run: claude plugin validate --strict .
       - run: claude plugin test .
+
+  fuzz:
+    name: fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci --prefix tests --no-audit --no-fund
+      - run: node --test tests/note.fuzz.mjs

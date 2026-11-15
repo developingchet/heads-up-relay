@@ -155,7 +155,7 @@ test('by default a shown note is added to the main conversation once, as a hidde
   expect(text).toContain(`\n\`\`\`text\nHeads up · ${LINE}\n${EXPLANATION}\n\`\`\`\n`)
   expect(text).toContain('(unverified)')
   expect(seen.submitted).toEqual([])
-  expect(seen.transcript).toEqual([`heads-up-relay: sent Claude a Heads up note: ${LINE}`])
+  expect(seen.transcript).toEqual([`sent Claude a Heads up note: ${LINE}`])
 })
 
 test('a forwarded note is taken off the band before it is stored, and stays off on rewrites', { plugins: [reviewer()] }, async ($, on) => {
@@ -419,7 +419,7 @@ test('a note shown while Claude replies is appended after the reply ends, and is
 
   expect(notes(session).length).toBe(1)
   expect(notes(session)[0]).toContain(`Heads up · ${LINE}`)
-  expect(seen.transcript).toEqual([`heads-up-relay: sent Claude a Heads up note: ${LINE}`])
+  expect(seen.transcript).toEqual([`sent Claude a Heads up note: ${LINE}`])
 })
 
 test('a held note that cannot be appended is shown in full in the transcript', { plugins: [reviewer()] }, async ($, on) => {
@@ -587,7 +587,7 @@ test('an append stored after its deadline is reported, and the next write takes 
   await $.turn.start(review([offer(LINE, 't1')], 't2'))
 
   expect(appended).toBe(1)
-  expect(seen.transcript.at(-1)).toBe(`heads-up-relay: sent Claude a Heads up note after all: ${LINE}`)
+  expect(seen.transcript.at(-1)).toBe(`sent Claude a Heads up note after all: ${LINE}`)
   expect(shownView(seen)).toBeUndefined()
 })
 
@@ -634,7 +634,7 @@ test('the status line clears once a later note gets through', { plugins: [review
   await $.turn.start(review([offer(LINE, 't2')], 't2'))
 
   expect(notes(session).length).toBe(1)
-  expect(seen.status).toEqual(['heads-up-relay: notes not forwarded, see transcript', undefined])
+  expect(seen.status).toEqual(['notes not forwarded, see transcript', undefined])
 })
 
 test('a note recorded without a readable offer raises a visible warning', { plugins: [reviewer()] }, async ($, on) => {

@@ -7,3 +7,18 @@ updates:
     groups:
       actions:
         patterns: ['*']
+  - package-ecosystem: npm
+    directory: /tests
+    schedule:
+      interval: weekly
+    groups:
+      property-tests:
+        patterns: ['*']
+  # Claude Code in .github/ci stays at the release the relay is checked
+  # against, so only security updates touch it.
+  - package-ecosystem: npm
+    directory: /.github/ci
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: '@anthropic-ai/claude-code*'
