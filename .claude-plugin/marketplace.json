@@ -1,0 +1,14 @@
+{
+  "name": "heads-up-relay",
+  "owner": { "name": "developingchet" },
+  "metadata": {
+    "description": "Relays the built-in You should know reviewer's notes into Claude Code's main conversation."
+  },
+  "plugins": [
+    {
+      "name": "heads-up-relay",
+      "source": "./",
+      "description": "Adds the built-in You should know reviewer's notes to the main conversation as unverified context, without starting a turn. Needs the built-in reviewer, which is not available to every account."
+    }
+  ]
+}

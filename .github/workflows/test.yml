@@ -1,0 +1,43 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # The release the relay is checked against; keep in step with CHECKED_RELEASE in hooks/register.ts.
+  CLAUDE_CODE_VERSION: 2.1.325
+  DISABLE_AUTOUPDATER: '1'
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Claude Code
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash -s "$CLAUDE_CODE_VERSION"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install Claude Code
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & ([scriptblock]::Create((irm https://claude.ai/install.ps1))) $env:CLAUDE_CODE_VERSION
+          Add-Content -Path $env:GITHUB_PATH -Value "$env:USERPROFILE\.local\bin"
+      - run: claude --version
+      - run: claude plugin validate .
+      - run: claude plugin test .
