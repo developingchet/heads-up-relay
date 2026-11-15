@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.2 - 2026-11-15
+
+- Drops the one-time transcript reminder on the first session of a new Claude Code release. Each release is
+  checked in this repository instead: the Upstream releases workflow compares the reviewer's storage with a
+  saved baseline and runs the relay's validation and tests with that release, opening one issue per change
+  it finds.
+
 ## 0.0.1 - 2026-11-15
 
 First release.

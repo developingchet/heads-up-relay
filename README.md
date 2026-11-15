@@ -173,7 +173,8 @@ in a session picks up the change.
 
 Checked on Claude Code 2.1.325, which has hooks modules. The relay reads the reviewer's private storage,
 which is not a published interface, so a later release can break it; see
-[How it reads the notes](#how-it-reads-the-notes) for the warnings it gives when that happens.
+[How it reads the notes](#how-it-reads-the-notes) for the warnings it gives when that happens, and
+[Release checks](#release-checks) for how each new release is checked here.
 
 ## What the main agent gets
 
@@ -319,13 +320,11 @@ so the relay watches for it:
   unreadable `seen`, or a store key the reviewer has not used before each put a warning in the transcript
   and the status line; an offer missing its tag is still forwarded, as You should know, with a warning in
   the transcript only;
-- the status line clears once a later note is delivered;
-- on the first session of a release other than 2.1.325 it writes a one-time reminder to confirm that the next
-  note still arrives.
+- the status line clears once a later note is delivered.
 
 After an update, if a warning appears, recheck the reviewer's writes (its store file is
-`~/.claude/plugins/store/cc-plugin-you-should-know_builtin-*.json`) and update `hooks/note.ts` and
-`CHECKED_RELEASE` in `hooks/register.ts`.
+`~/.claude/plugins/store/cc-plugin-you-should-know_builtin-*.json`), update `hooks/note.ts`, and move the
+checked release forward as `CONTRIBUTING.md` describes.
 
 ## Developing
 
@@ -348,11 +347,33 @@ tag `heads-up-relay--v<version>`. Installed copies see the new version through `
 The tests load a stand-in plugin under the reviewer's name at the built-in tier, so its writes reach the
 relay with the same origin a session gives them, and read the appended rows back from the test kit's session.
 `tests/note.fuzz.mjs` adds property-based tests of the note's cleaning, fence and escaping, run with Node 24
-or later after `npm ci --prefix tests`: `node --test tests/note.fuzz.mjs`.
+or later after `npm ci --prefix tests`; the release checks below have their own tests beside them:
+`node --test tests/note.fuzz.mjs tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs`.
 
 Because the stand-in matches the reviewer's layout as of 2.1.325, the tests keep passing if a later release
-changes it. A weekly workflow looks for that layout in the newest Claude Code release and fails when it is
-gone; a live session after each update is still the only check that a note arrives.
+changes it; the release checks cover that.
+
+### Release checks
+
+The reviewer is built into Claude Code, so it changes only when Claude Code does. Twice a day the
+[Upstream releases](.github/workflows/upstream-releases.yml) workflow takes each release on npm's `latest` and
+`next` tags that is newer than the checked one, unpacks its Linux build, and:
+
+- reads the facts the relay depends on from the build's file, without running it, using
+  `scripts/reviewer-facts.mjs` (the reviewer's store keys, the fields of its stored note, how many of its
+  writes keep each shape, and the order of its writes), and compares them with `.github/reviewer-facts.json`;
+  only names that survive minification are read, so a rebuild compares equal;
+- runs `claude plugin validate .` and `claude plugin test .` with that release, without the workflow's token,
+  giving the tests a second run before a failure counts.
+
+A difference opens one issue, assigned to the repository owner, naming the release, what changed and what
+failed. A later release with the same difference is added to that issue's list without a notification, and
+closing the issue accepts that difference until the checked release moves forward. Only issues the workflow
+opened count. A release with no difference, or a run that cannot reach npm or GitHub, opens nothing and
+passes; a run fails only when it found a difference and could not open an issue for it. To check one release
+by hand, run the workflow from the Actions tab with its version.
+
+A pass does not prove that notes still arrive; only a live session shows that.
 
 Each tag publishes a GitHub release with the plugin as a zip and a checksum file, both signed with cosign;
 the release notes show how to verify them.

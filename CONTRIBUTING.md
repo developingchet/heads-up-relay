@@ -33,8 +33,21 @@ squash-merged, so the pull request title becomes the commit subject on `main`.
 
 ## Compatibility
 
-The relay reads the reviewer's private storage, checked against the Claude Code release in `CHECKED_RELEASE`
-(`hooks/register.ts`). A change that moves to a newer release updates that constant, the Claude Code version
-in `.github/ci/package.json` and its lockfile (`npm install --prefix .github/ci @anthropic-ai/claude-code@<version>`),
-and the release named in the README together. The weekly Reviewer layout workflow fails when the newest
-release no longer contains the layout the relay reads.
+The relay reads the reviewer's private storage, checked against the Claude Code release in
+`.github/reviewer-facts.json`. The Upstream releases workflow compares each newer release with that file and
+opens an issue when something the relay relies on differs (see Release checks in the README).
+
+A change that moves to a newer release updates, together:
+
+1. the Claude Code version in `.github/ci/package.json` and its lockfile:
+   `npm install --prefix .github/ci @anthropic-ai/claude-code@<version>`;
+2. the baseline, from that release's Linux build:
+   `node scripts/reviewer-facts.mjs .github/ci/node_modules/@anthropic-ai/claude-code-linux-x64/claude --release <version> > .github/reviewer-facts.json`
+   (on Windows or macOS, the platform's own build under `.github/ci/node_modules/@anthropic-ai/` gives the
+   same facts);
+3. the tests' stand-in reviewer, if the layout changed, and the release named in the README.
+
+The ubuntu test job compares the baseline with the pinned build, so a baseline that does not match it fails.
+
+GitHub turns off scheduled workflows in a public repository after 60 days without activity and emails the
+owner before it does; re-enable Upstream releases from the Actions tab if that happens.

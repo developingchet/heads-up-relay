@@ -11,12 +11,6 @@ import {
   withoutView,
 } from './note'
 
-/**
- * The reviewer's private store layout this relay reads was checked against
- * this Claude Code release; another release raises a one-time reminder.
- */
-const CHECKED_RELEASE = '2.1.325'
-
 /** The keys the reviewer is known to write; any other means its layout moved. */
 const KNOWN_KEYS: ReadonlySet<string> = new Set([
   'sessions',
@@ -369,17 +363,6 @@ function startReply($: Engine, relay: Relay, step: Reply, signal: AbortSignal): 
   return end
 }
 
-async function remindAfterUpdate($: Engine): Promise<void> {
-  const { version } = await $.session.version()
-  if (version === CHECKED_RELEASE) return
-  if ((await $.store.get('remindedRelease')) === version) return
-
-  await $.store.set('remindedRelease', version)
-  $.ui.log(
-    `This is Claude Code ${version}; the relay reads the You should know reviewer's private store, checked on ${CHECKED_RELEASE}. Confirm the next note reaches the conversation.`,
-  )
-}
-
 const modeOf = (value: unknown): Mode | undefined =>
   value === 'append' || value === 'log' ? value : undefined
 
@@ -448,16 +431,6 @@ export const register: Register = (on, options) => {
       }
     })
   }
-
-  on('session.start', async ($, e, next) => {
-    const started = await next(e)
-    try {
-      await remindAfterUpdate($)
-    } catch (error) {
-      debug($, `release check failed: ${reasonOf(error)}`)
-    }
-    return started
-  })
 
   on('session.end', ($, e, next) => {
     forget($, relay)

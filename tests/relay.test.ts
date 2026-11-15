@@ -59,13 +59,12 @@ type Engine = {
 }
 
 type Setup = {
-  readonly release?: string
   /** Refuses every append from below with this reason. */
   readonly denyAppend?: string
 }
 
 /** Answers everything the relay calls beneath it, recording what it says. */
-const engine = (on: On, { release = '2.1.325', denyAppend }: Setup = {}): Engine => {
+const engine = (on: On, { denyAppend }: Setup = {}): Engine => {
   const seen: Engine = { submitted: [], transcript: [], status: [], stored: new Map(), sessionWrites: [] }
   on('store.get', (_, e) => ({ value: seen.stored.get(e.key) }))
   on('store.set', (_, e) => {
@@ -74,7 +73,6 @@ const engine = (on: On, { release = '2.1.325', denyAppend }: Setup = {}): Engine
     return { value: undefined }
   })
   on('session.id', () => ({ value: SESSION }))
-  on('session.version', () => ({ value: { version: release } }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('prompt.submit', (_, e) => {
@@ -123,7 +121,7 @@ const notes = (session: ReturnType<typeof mock.session>): string[] =>
       block.type === 'text' && typeof block.text === 'string' ? [block.text] : []))
 
 test('mode off leaves the reviewer untouched', { plugins: [reviewer()], options: { mode: 'off' } }, async ($, on) => {
-  const seen = engine(on, { release: '2.1.400' })
+  const seen = engine(on)
   const session = mock.session(on)
   const clock = mock.clock(on)
 
@@ -664,25 +662,6 @@ test('an unknown reviewer store key raises a visible warning once', { plugins: [
 
   expect(seen.transcript.length).toBe(1)
   expect(seen.transcript[0]).toContain('"notes"')
-})
-
-test('another release is reminded of once', {}, async ($, on) => {
-  const seen = engine(on, { release: '2.1.400' })
-  const start = { cwd: '/', surface: 'terminal', isInteractive: true } as const
-
-  await $.session.start(start)
-  await $.session.start(start)
-
-  expect(seen.transcript.length).toBe(1)
-  expect(seen.transcript[0]).toContain('2.1.400')
-})
-
-test('the checked release is not reminded of', {}, async ($, on) => {
-  const seen = engine(on)
-
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-
-  expect(seen.transcript).toEqual([])
 })
 
 const noteOf = (line: string, explanation = '') =>
