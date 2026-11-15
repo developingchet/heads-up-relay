@@ -39,5 +39,5 @@ jobs:
           & ([scriptblock]::Create((irm https://claude.ai/install.ps1))) $env:CLAUDE_CODE_VERSION
           Add-Content -Path $env:GITHUB_PATH -Value "$env:USERPROFILE\.local\bin"
       - run: claude --version
-      - run: claude plugin validate .
+      - run: claude plugin validate --strict .
       - run: claude plugin test .

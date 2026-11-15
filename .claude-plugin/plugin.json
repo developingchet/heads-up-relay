@@ -1,5 +1,6 @@
 {
   "name": "heads-up-relay",
+  "displayName": "Heads-up Relay",
   "version": "0.0.1",
   "description": "Adds the built-in You should know reviewer's notes to the main conversation as unverified context, without starting a turn. Needs the built-in reviewer, which is not available to every account.",
   "author": { "name": "developingchet" },
@@ -7,6 +8,9 @@
   "repository": "https://github.com/developingchet/heads-up-relay",
   "license": "MIT",
   "keywords": ["you-should-know", "heads-up", "context", "reviewer"],
+  "icon": "./.claude-plugin/icon.png",
+  "documentationUrl": "https://github.com/developingchet/heads-up-relay#readme",
+  "supportUrl": "https://github.com/developingchet/heads-up-relay/issues",
   "userConfig": {
     "mode": {
       "type": "string",
