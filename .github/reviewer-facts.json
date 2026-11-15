@@ -1,0 +1,29 @@
+{
+  "release": "2.1.325",
+  "facts": {
+    "reviewerName": true,
+    "offerCount": 1,
+    "entryKeys": [
+      "offeredTurn",
+      "tag",
+      "view"
+    ],
+    "viewKeys": [
+      "explanation",
+      "kind",
+      "line",
+      "shownAt"
+    ],
+    "storeKeys": [
+      "known",
+      "looksToSkip",
+      "seen",
+      "sessions",
+      "typedPastInARow"
+    ],
+    "seenWrittenBeforeOffer": true,
+    "seenWritesOfLines": 1,
+    "sessionsWritesWithId": 5,
+    "sessionsWritesClearingView": 3
+  }
+}
