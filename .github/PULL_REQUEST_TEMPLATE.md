@@ -13,7 +13,7 @@ Closes #
 
 ## Testing
 
-- [ ] `claude plugin validate .`
+- [ ] `claude plugin validate --strict .`
 - [ ] `claude plugin test .`
 - [ ] Checked in a live session with the reviewer running (if relay behaviour changed)
 

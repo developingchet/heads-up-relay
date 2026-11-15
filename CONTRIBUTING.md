@@ -10,7 +10,7 @@ opening an issue.
 3. Add or update tests in `tests/` for any change in behaviour, then run:
 
    ```sh
-   claude plugin validate .
+   claude plugin validate --strict .
    claude plugin test .
    ```
 

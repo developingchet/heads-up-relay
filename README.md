@@ -118,6 +118,9 @@ does starting a session with `--safe-mode`.
    `Installed heads-up-relay. Plugin is now active.`: the hooks run in that session from then on, with no
    restart, and in every later session under the user scope.
 
+   An install from a shell ends with `1 userConfig option not yet set` instead. That is expected: until
+   `mode` is set, the relay runs with its default, `append`.
+
 4. Check it. `claude plugin list` shows `heads-up-relay@heads-up-relay` among the installed plugins. The
    first time a note is relayed, the transcript shows `heads-up-relay: sent Claude a … note: …`. Notes are
    occasional; [Nothing arrives](#nothing-arrives) covers a session where none come.
@@ -133,6 +136,12 @@ claude plugin uninstall heads-up-relay@heads-up-relay
 ```
 
 Each command is described in the [plugin CLI reference](https://code.claude.com/docs/en/plugins/cli-reference).
+
+Background auto-update is off for this marketplace by default, so a new release reaches an install only
+through `claude plugin update`, unless you [turn auto-update
+on](https://code.claude.com/docs/en/plugins/host-marketplace#turn-on-auto-update): in `/plugin`, open
+**Marketplaces**, select `heads-up-relay`, then **Enable auto-update**.
+
 `mode: off` in `/config` also stops it: the relay then registers no hooks, and the reviewer runs as it would
 without it.
 
@@ -320,7 +329,7 @@ From a clone of this repository:
 
 ```sh
 claude --plugin-dir .
-claude plugin validate .
+claude plugin validate --strict .
 claude plugin test .
 ```
 
