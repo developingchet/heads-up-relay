@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".claude-plugin/icon.png" alt="heads-up-relay logo: a heads-up note carried by an arrow into the conversation" width="160">
+</p>
+
 # heads-up-relay
 
 [![Test](https://github.com/developingchet/heads-up-relay/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/developingchet/heads-up-relay/actions/workflows/test.yml)
@@ -343,6 +347,15 @@ tag `heads-up-relay--v<version>`. Installed copies see the new version through `
 
 The tests load a stand-in plugin under the reviewer's name at the built-in tier, so its writes reach the
 relay with the same origin a session gives them, and read the appended rows back from the test kit's session.
+`tests/note.fuzz.mjs` adds property-based tests of the note's cleaning, fence and escaping, run with Node 24
+or later after `npm ci --prefix tests`: `node --test tests/note.fuzz.mjs`.
+
+Because the stand-in matches the reviewer's layout as of 2.1.325, the tests keep passing if a later release
+changes it. A weekly workflow looks for that layout in the newest Claude Code release and fails when it is
+gone; a live session after each update is still the only check that a note arrives.
+
+Each tag publishes a GitHub release with the plugin as a zip and a checksum file, both signed with cosign;
+the release notes show how to verify them.
 
 ## Seeing what the main agent did with a note
 

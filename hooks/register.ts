@@ -91,7 +91,7 @@ const quoted = (text: string): string => `"${oneLine(text)}"`
 /** Writes to the debug log, never throwing: it is the last place to report to. */
 function debug($: Engine, text: string): void {
   try {
-    $.ui.log(`${$.plugin.name}: ${text}`, { to: 'debug' })
+    $.ui.log(text, { to: 'debug' })
   } catch {
     // Nothing is left to report a failing debug log to.
   }
@@ -106,11 +106,11 @@ function warn($: Engine, relay: Relay, id: string, text: string, { raisesStatus 
   try {
     if (raisesStatus && !relay.isStatusShown) {
       relay.isStatusShown = true
-      $.ui.status(`${$.plugin.name}: notes not forwarded, see transcript`)
+      $.ui.status('notes not forwarded, see transcript')
     }
     if (relay.warned.has(id)) return
     relay.warned.add(id)
-    $.ui.log(`⚠ ${$.plugin.name}: ${text}`)
+    $.ui.log(`⚠ ${text}`)
   } catch (error) {
     debug($, `showing a warning failed: ${reasonOf(error)}`)
   }
@@ -130,7 +130,7 @@ function delivered($: Engine, relay: Relay): void {
 function receipt($: Engine, relay: Relay, note: ReviewerNote, turn: string, isLate = false): void {
   try {
     debug($, `forwarded a ${oneLine(note.tag)} note about turn ${oneLine(turn)}`)
-    $.ui.log(`${$.plugin.name}: sent Claude a ${oneLine(note.tag)} note${isLate ? ' after all' : ''}: ${oneLine(note.line)}`)
+    $.ui.log(`sent Claude a ${oneLine(note.tag)} note${isLate ? ' after all' : ''}: ${oneLine(note.line)}`)
     delivered($, relay)
   } catch (error) {
     debug($, `reporting a forwarded note failed: ${reasonOf(error)}`)
@@ -376,7 +376,7 @@ async function remindAfterUpdate($: Engine): Promise<void> {
 
   await $.store.set('remindedRelease', version)
   $.ui.log(
-    `${$.plugin.name}: this is Claude Code ${version}; the relay reads the You should know reviewer's private store, checked on ${CHECKED_RELEASE}. Confirm the next note reaches the conversation.`,
+    `This is Claude Code ${version}; the relay reads the You should know reviewer's private store, checked on ${CHECKED_RELEASE}. Confirm the next note reaches the conversation.`,
   )
 }
 

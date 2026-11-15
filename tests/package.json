@@ -1,0 +1,9 @@
+{
+  "name": "heads-up-relay-property-tests",
+  "private": true,
+  "description": "Packages for the property-based tests in note.fuzz.mjs, run with Node outside Claude Code's test kit.",
+  "type": "module",
+  "devDependencies": {
+    "fast-check": "4.10.2"
+  }
+}
