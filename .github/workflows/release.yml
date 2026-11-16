@@ -65,11 +65,11 @@ jobs:
             echo '## Install'
             echo
             echo '```text'
-            echo "/plugin marketplace add developingchet/heads-up-relay#$TAG"
+            echo '/plugin marketplace add developingchet/heads-up-relay'
             echo '/plugin install heads-up-relay@heads-up-relay'
             echo '```'
             echo
-            echo 'The `#'"$TAG"'` suffix pins the install to this release. To move an existing install to this release, pinned or not, run `/plugin marketplace remove heads-up-relay` first, which also deletes saved options such as `mode`; see [Install a release](https://github.com/developingchet/heads-up-relay#install-a-release).'
+            echo 'An install that follows the default branch receives this release with `claude plugin update heads-up-relay@heads-up-relay`. To install exactly this release instead, add the marketplace as `developingchet/heads-up-relay#'"$TAG"'`, after `/plugin marketplace remove heads-up-relay` if it is already added (removing it also deletes saved options such as `mode`); see [Install a release](https://github.com/developingchet/heads-up-relay#install-a-release).'
             echo
             echo 'It needs the built-in You should know reviewer; see [Before you install](https://github.com/developingchet/heads-up-relay#before-you-install).'
             echo
