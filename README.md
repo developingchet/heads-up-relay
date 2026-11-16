@@ -129,6 +129,35 @@ does starting a session with `--safe-mode`.
    first time a note is relayed, the transcript shows `heads-up-relay: sent Claude a … note: …`. Notes are
    occasional; [Nothing arrives](#nothing-arrives) covers a session where none come.
 
+The install above follows the default branch, which can hold changes made since the last release.
+
+### Install a release
+
+A marketplace added with `#<tag>` installs the tree of that release. Each
+[release](https://github.com/developingchet/heads-up-relay/releases) is tagged `heads-up-relay--v<version>`
+and its notes give the exact commands. From a shell:
+
+```sh
+claude plugin marketplace add developingchet/heads-up-relay#heads-up-relay--v<version>
+claude plugin install heads-up-relay@heads-up-relay
+```
+
+In a session, `/plugin marketplace add` and `/plugin install` take the same arguments. Each release also
+publishes its tree as a zip with `checksums.txt`, both signed with cosign; its notes give the
+`cosign verify-blob` command.
+
+The marketplace's source, including the tag, is recorded in your settings, and adding it again from another
+source is refused. To pin an install made from the default branch, or to move a pinned install to a later
+release, remove the marketplace first, then add it again at the tag and set the options again. Removing it
+also uninstalls the plugin and deletes its saved options such as `mode`:
+
+```sh
+claude plugin marketplace remove heads-up-relay
+```
+
+Release tags are protected from moving, so `claude plugin update` finds nothing new for a pinned install. See
+[Marketplace sources](https://code.claude.com/docs/en/plugins/marketplace-reference#marketplace-sources).
+
 ### Configure, update and remove
 
 ```sh
@@ -342,7 +371,8 @@ and not committed.
 
 To release, raise `version` in `.claude-plugin/plugin.json`, add the version to `CHANGELOG.md`, commit, and
 tag with `claude plugin tag .`, which checks that the manifest and the marketplace entry agree and names the
-tag `heads-up-relay--v<version>`. Installed copies see the new version through `claude plugin update`.
+tag `heads-up-relay--v<version>`. Installed copies see the new version through `claude plugin update`, except
+those pinned to an earlier tag ([Install a release](#install-a-release)).
 
 The tests load a stand-in plugin under the reviewer's name at the built-in tier, so its writes reach the
 relay with the same origin a session gives them, and read the appended rows back from the test kit's session.
