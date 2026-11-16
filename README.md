@@ -98,29 +98,35 @@ does starting a session with `--safe-mode`.
    { "enabledPlugins": { "cc-plugin-you-should-know@builtin": true } }
    ```
 
-2. Install the plugin. At the prompt of a Claude Code terminal session:
+2. Add the marketplace and install the plugin. At the prompt of a Claude Code terminal session:
 
    ```text
-   /plugin install heads-up-relay --marketplace developingchet/heads-up-relay
+   /plugin marketplace add developingchet/heads-up-relay
+   /plugin install heads-up-relay@heads-up-relay
    ```
 
    Or from a shell:
 
    ```sh
-   claude plugin install heads-up-relay --marketplace developingchet/heads-up-relay
+   claude plugin marketplace add developingchet/heads-up-relay
+   claude plugin install heads-up-relay@heads-up-relay
    ```
 
-   The [one-command install](https://code.claude.com/docs/en/discover-plugins#add-a-marketplace-and-install-in-one-command)
-   needs Claude Code 2.1.275 or later in a session, and 2.1.292 or later from a shell.
+   `/plugin install heads-up-relay --marketplace developingchet/heads-up-relay` does both steps in one
+   command in Claude Code 2.1.275 or later, after asking `Add marketplace?` for
+   `github:developingchet/heads-up-relay`. From a shell,
+   `claude plugin install heads-up-relay --marketplace developingchet/heads-up-relay` needs 2.1.292 or later
+   and adds the marketplace without asking. See
+   [Tell users how to install](https://code.claude.com/docs/en/plugins/publish#tell-users-how-to-install) and
+   [Install and manage plugins](https://code.claude.com/docs/en/plugins/install#add-a-marketplace-and-install-in-one-command).
 
    In the desktop app, where `/plugin` does not run: click + next to the prompt box, then Plugins, Add
    marketplace with `developingchet/heads-up-relay`, then Add plugin.
 
-3. Answer the prompts. Claude Code asks `Add marketplace?` for `github:developingchet/heads-up-relay`;
-   answer `y`. Pick a scope (the user scope, first in the list, loads it in every session) with Enter, then
-   set `mode` on the options screen, or keep the default, `append`. It ends with
-   `Installed heads-up-relay. Plugin is now active.`: the hooks run in that session from then on, with no
-   restart, and in every later session under the user scope.
+3. Answer the prompts. Pick a scope (the user scope, first in the list, loads it in every session) with
+   Enter, then set `mode` on the options screen, or keep the default, `append`. The hooks run in that session
+   from then on, with no restart, and in every later session under the user scope. If the summary says a
+   reload is pending, run `/reload-plugins`.
 
    An install from a shell ends with `1 userConfig option not yet set` instead. That is expected: until
    `mode` is set, the relay runs with its default, `append`.
@@ -129,7 +135,11 @@ does starting a session with `--safe-mode`.
    first time a note is relayed, the transcript shows `heads-up-relay: sent Claude a … note: …`. Notes are
    occasional; [Nothing arrives](#nothing-arrives) covers a session where none come.
 
-The install above follows the default branch, which can hold changes made since the last release.
+The install follows the default branch, and `claude plugin update` brings a new copy once a release raises
+`version` in `plugin.json`. Auto-update is off for this marketplace by default; to receive releases without running
+`claude plugin update`, open `/plugin`, then **Marketplaces**, select `heads-up-relay`, then **Enable
+auto-update** ([Keep plugins updated](https://code.claude.com/docs/en/plugins/install#keep-plugins-updated)).
+To stay on one release instead, see [Install a release](#install-a-release).
 
 ### Install a release
 
@@ -170,10 +180,8 @@ claude plugin uninstall heads-up-relay@heads-up-relay
 
 Each command is described in the [plugin CLI reference](https://code.claude.com/docs/en/plugins/cli-reference).
 
-Background auto-update is off for this marketplace by default, so a new release reaches an install only
-through `claude plugin update`, unless you [turn auto-update
-on](https://code.claude.com/docs/en/plugins/host-marketplace#turn-on-auto-update): in `/plugin`, open
-**Marketplaces**, select `heads-up-relay`, then **Enable auto-update**.
+`claude plugin update` installs a new copy only when `version` in `plugin.json` has changed; a pinned install
+moves only as [Install a release](#install-a-release) describes.
 
 `mode: off` in `/config` also stops it: the relay then registers no hooks, and the reviewer runs as it would
 without it.
