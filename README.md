@@ -79,7 +79,7 @@ started with `--debug` also has `hooks module cc-plugin-you-should-know@builtin 
 log](https://code.claude.com/docs/en/plugins/mods/troubleshoot#read-the-debug-log)
 (`~/.claude/debug/<session id>.txt`). Where the reviewer is missing, heads-up-relay has nothing to pass on. A
 note the reviewer shows also appears on its band above the prompt, or, with the relay installed, as a
-`heads-up-relay: sent Claude a … note` line in the transcript.
+`heads-up-relay: relayed Claude a note` line in the transcript.
 
 The reviewer itself checks a turn only now and then (in 2.1.325, at its 7th model request and every sixth one
 after), skips notes it has already shown or that you marked as known, and backs off when its notes are
@@ -132,7 +132,7 @@ does starting a session with `--safe-mode`.
    `mode` is set, the relay runs with its default, `append`.
 
 4. Check it. `claude plugin list` shows `heads-up-relay@heads-up-relay` among the installed plugins. The
-   first time a note is relayed, the transcript shows `heads-up-relay: sent Claude a … note: …`. Notes are
+   first time a note is relayed, the transcript shows `heads-up-relay: relayed Claude a note: …`. Notes are
    occasional; [Nothing arrives](#nothing-arrives) covers a session where none come.
 
 The install follows the default branch, and `claude plugin update` brings a new copy once a release raises
@@ -251,7 +251,7 @@ and its appends finish before the request's result goes back, so the next reques
 is aborted ends the hold too. One that ends without closing its stream is noticed when the next request
 starts, and its held notes wait for that request's reply instead. A subagent's requests do not hold notes.
 
-Each forwarded note also gets one line in the transcript, `heads-up-relay: sent Claude a <tag> note: <the note>`,
+Each forwarded note also gets one line in the transcript, `heads-up-relay: relayed Claude a note: <the note>`,
 so the person sees what the main agent was given. Reviewer text quoted in that line or in a warning passes the
 same cleaning, on one line. A note written to the transcript in full (in `log` mode, or when a held note
 cannot be appended) has each line marked `│ `, so no line of it can pass for one the relay wrote.

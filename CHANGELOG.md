@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The transcript line for a forwarded note reads `relayed Claude a note: <the note>`, without the note's tag.
+
 ## 0.0.1 - 2026-11-15
 
 First release.
