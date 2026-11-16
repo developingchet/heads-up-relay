@@ -153,7 +153,7 @@ test('by default a shown note is added to the main conversation once, as a hidde
   expect(text).toContain(`\n\`\`\`text\nHeads up · ${LINE}\n${EXPLANATION}\n\`\`\`\n`)
   expect(text).toContain('(unverified)')
   expect(seen.submitted).toEqual([])
-  expect(seen.transcript).toEqual([`sent Claude a Heads up note: ${LINE}`])
+  expect(seen.transcript).toEqual([`relayed Claude a note: ${LINE}`])
 })
 
 test('a forwarded note is taken off the band before it is stored, and stays off on rewrites', { plugins: [reviewer()] }, async ($, on) => {
@@ -331,7 +331,7 @@ test('a note without a tag is forwarded under the default tag and warns', { plug
   expect(notes(session)[0]).toContain(`\nYou should know · ${LINE}\n`)
   expect(seen.transcript.length).toBe(2)
   expect(seen.transcript[0]).toContain('without a tag')
-  expect(seen.transcript[1]).toContain('sent Claude a You should know note')
+  expect(seen.transcript[1]).toContain('relayed Claude a note')
   expect(seen.status).toEqual([])
 })
 
@@ -417,7 +417,7 @@ test('a note shown while Claude replies is appended after the reply ends, and is
 
   expect(notes(session).length).toBe(1)
   expect(notes(session)[0]).toContain(`Heads up · ${LINE}`)
-  expect(seen.transcript).toEqual([`sent Claude a Heads up note: ${LINE}`])
+  expect(seen.transcript).toEqual([`relayed Claude a note: ${LINE}`])
 })
 
 test('a held note that cannot be appended is shown in full in the transcript', { plugins: [reviewer()] }, async ($, on) => {
@@ -585,7 +585,7 @@ test('an append stored after its deadline is reported, and the next write takes 
   await $.turn.start(review([offer(LINE, 't1')], 't2'))
 
   expect(appended).toBe(1)
-  expect(seen.transcript.at(-1)).toBe(`sent Claude a Heads up note after all: ${LINE}`)
+  expect(seen.transcript.at(-1)).toBe(`relayed Claude a note after all: ${LINE}`)
   expect(shownView(seen)).toBeUndefined()
 })
 

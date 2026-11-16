@@ -124,7 +124,7 @@ function delivered($: Engine, relay: Relay): void {
 function receipt($: Engine, relay: Relay, note: ReviewerNote, turn: string, isLate = false): void {
   try {
     debug($, `forwarded a ${oneLine(note.tag)} note about turn ${oneLine(turn)}`)
-    $.ui.log(`sent Claude a ${oneLine(note.tag)} note${isLate ? ' after all' : ''}: ${oneLine(note.line)}`)
+    $.ui.log(`relayed Claude a note${isLate ? ' after all' : ''}: ${oneLine(note.line)}`)
     delivered($, relay)
   } catch (error) {
     debug($, `reporting a forwarded note failed: ${reasonOf(error)}`)
