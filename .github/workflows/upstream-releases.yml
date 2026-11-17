@@ -9,6 +9,10 @@ name: Upstream releases
 # issue without a notification, and closing the issue accepts the change.
 # Network and API errors are warnings, so a run fails only when it found a
 # change and could not open an issue for it.
+#
+# The release runs in `check`, whose token has no permissions, and what it
+# found goes to `report` as an artifact; only `report` can write issues, and it
+# reads the artifact as untrusted.
 
 on:
   schedule:
@@ -20,8 +24,7 @@ on:
         required: false
         type: string
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: upstream-releases
@@ -31,6 +34,30 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions: {}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Check new Claude Code releases
+        run: node .github/scripts/upstream-check.mjs check "$RUNNER_TEMP/upstream-results.json"
+        env:
+          REQUESTED: ${{ inputs.version }}
+          DISABLE_AUTOUPDATER: '1'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: upstream-results
+          path: ${{ runner.temp }}/upstream-results.json
+          retention-days: 5
+          if-no-files-found: error
+
+  report:
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
@@ -41,9 +68,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - name: Check new Claude Code releases
-        run: node .github/scripts/upstream-check.mjs
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: upstream-results
+          path: ${{ runner.temp }}/upstream-results
+      - name: Open or update the issues
+        run: node .github/scripts/upstream-check.mjs report "$RUNNER_TEMP/upstream-results/upstream-results.json"
         env:
           GH_TOKEN: ${{ github.token }}
-          REQUESTED: ${{ inputs.version }}
-          DISABLE_AUTOUPDATER: '1'

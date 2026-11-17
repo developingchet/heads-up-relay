@@ -2,7 +2,8 @@ name: Release
 
 # Publishes a GitHub release for a tag made by `claude plugin tag`
 # (heads-up-relay--v<version>): the plugin as a zip and a checksum file, both
-# signed with cosign, and the version's CHANGELOG entry as the notes.
+# signed with cosign, and the version's CHANGELOG entry as the notes. The
+# tagged commit runs the full test workflow first.
 
 on:
   push:
@@ -12,7 +13,13 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
   github-release:
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

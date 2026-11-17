@@ -1,19 +1,30 @@
 #!/usr/bin/env node
 // Checks each Claude Code release newer than the relay's baseline for a change
-// heads-up-relay would feel: the You should know reviewer's storage facts
+// heads-up-relay would feel: the You should know reviewer's facts
 // (scripts/reviewer-facts.mjs), and the relay's own validation and tests run
 // with that release. A release with a change opens one issue, assigned to the
 // repository owner; a later release with the same change is added to that
 // issue without a new notification, and a closed issue stays closed for it
 // until the baseline moves to a newer release.
 //
+// It runs in two steps, so the release's build never runs where a token can
+// write to the repository:
+//
+//   upstream-check.mjs check <results file>   download, read and run each release; needs no token
+//   upstream-check.mjs report <results file>  open or update the issues; needs GH_TOKEN
+//
+// `report` reads what `check` wrote as untrusted: a build that ran beside it
+// could have rewritten the file, so it keeps only results of the expected
+// shape and quotes their text.
+//
 // A release with no change, or a run that cannot reach npm or GitHub, opens
 // nothing and does not fail; the next run tries again. A run fails only when it
-// found a change and could not open an issue for it.
+// found a change and could not open an issue for it, or the results file is
+// not what `check` writes.
 //
-// Environment: GITHUB_REPOSITORY, GITHUB_REPOSITORY_OWNER, GH_TOKEN, and
-// optionally REQUESTED (one version to check), RUNNER_TEMP and
-// GITHUB_STEP_SUMMARY.
+// Environment: `check` reads REQUESTED (one version to check), RUNNER_TEMP
+// and GITHUB_STEP_SUMMARY; `report` reads GITHUB_REPOSITORY,
+// GITHUB_REPOSITORY_OWNER, GH_TOKEN, RUNNER_TEMP and GITHUB_STEP_SUMMARY.
 
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -34,15 +45,19 @@ const OUTPUT_CHARS = 4000
 const BUILD_TIMEOUT_MS = 3 * 60_000
 const ATTEMPTS = 3
 
+const VALIDATE = 'claude plugin validate .'
+const TESTS = 'claude plugin test . (failed twice)'
+
+/** The most a results file may hold: more than one run ever checks. */
+const MAX_RELEASES = 10
+const MAX_CHANGES = 50
+const CHANGE_CHARS = 2000
+
 /** The change recorded when a build cannot be read at all; fixed, so its signature is too. */
 export const UNREADABLE = 'facts: this build could not be read, so none of the facts could be checked'
 
 /** The change recorded when the release no longer ships the Linux build this check unpacks. */
 export const NO_BUILD = `download: this release has no ${BUILD} with a claude binary, so it could not be checked`
-
-const repo = process.env.GITHUB_REPOSITORY
-const owner = process.env.GITHUB_REPOSITORY_OWNER
-const requested = process.env.REQUESTED?.trim() || undefined
 
 /** The release could be fetched but has no build to check, which is a change rather than an outage. */
 class MissingBuild extends Error {}
@@ -95,7 +110,7 @@ export const isNewer = (a, b) => {
 /** Whether `version` looks like a release, so it is safe as a path and a package spec. */
 export const isRelease = version => typeof version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$/.test(version)
 
-const versionsToCheck = async checked => {
+const versionsToCheck = async (requested, checked) => {
   if (requested) return [requested]
   const tags = JSON.parse(await retry(ATTEMPTS, () => must('npm', ['view', PACKAGE, 'dist-tags', '--json'])))
   return [...new Set([tags.latest, tags.next].filter(isRelease))].filter(version => isNewer(version, checked))
@@ -147,10 +162,10 @@ const relayChecks = binary => {
   const options = { env: buildEnv(), timeout: BUILD_TIMEOUT_MS, killSignal: 'SIGKILL' }
   const failed = []
   const validate = run(binary, ['plugin', 'validate', '.'], options)
-  if (validate.status !== 0) failed.push({ name: 'claude plugin validate .', output: tail(output(validate)) })
+  if (validate.status !== 0) failed.push({ name: VALIDATE, output: tail(output(validate)) })
   let tests = run(binary, ['plugin', 'test', '.'], options)
   if (tests.status !== 0) tests = run(binary, ['plugin', 'test', '.'], options)
-  if (tests.status !== 0) failed.push({ name: 'claude plugin test . (failed twice)', output: tail(output(tests)) })
+  if (tests.status !== 0) failed.push({ name: TESTS, output: tail(output(tests)) })
   return failed
 }
 
@@ -174,17 +189,22 @@ export const withRelease = (body, version) => {
 /** A code fence longer than any run of backticks in `text`, so the text cannot close it. */
 const fenceFor = text => '`'.repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map(m => m[0].length + 1)))
 
+/** `text` in a code fence, so nothing in it is read as markdown or a mention. */
+const fenced = text => {
+  const fence = fenceFor(text)
+  return [`${fence}text`, text, fence]
+}
+
 export const issueBody = (version, checked, changed, failed, signature) => {
   const lines = [
     `Claude Code ${version} changes something heads-up-relay relies on, compared with ${checked}, the release the relay is checked against.`,
     '',
   ]
   if (changed.length > 0) {
-    lines.push("### The reviewer's storage", '', ...changed.map(line => `- ${line}`), '')
+    lines.push("### The reviewer's facts", '', ...fenced(changed.join('\n')), '')
   }
   for (const check of failed) {
-    const fence = fenceFor(check.output)
-    lines.push(`### \`${check.name}\` failed`, '', '<details><summary>Output</summary>', '', `${fence}text`, check.output, fence, '', '</details>', '')
+    lines.push(`### \`${check.name}\` failed`, '', '<details><summary>Output</summary>', '', ...fenced(check.output), '', '</details>', '')
   }
   lines.push(
     '### Next steps',
@@ -206,19 +226,126 @@ export const issueBody = (version, checked, changed, failed, signature) => {
 export const isOwnIssue = issue =>
   issue.author?.is_bot === true && /^(?:app\/)?github-actions(?:\[bot\])?$/.test(issue.author.login ?? '')
 
-const relayIssues = () =>
+const isText = (value, max) => typeof value === 'string' && value.length <= max
+
+const CHECKS = [VALIDATE, TESTS]
+
+/**
+ * The changed facts as the results file holds them: each line cut to
+ * CHANGE_CHARS and at most MAX_CHANGES lines, the last saying how many more
+ * there were, so a large difference is still reported rather than refused.
+ */
+export const boundedChanges = lines => {
+  const cut = lines.map(line => (line.length <= CHANGE_CHARS ? line : `${line.slice(0, CHANGE_CHARS - 4)} ...`))
+  if (cut.length <= MAX_CHANGES) return cut
+  return [...cut.slice(0, MAX_CHANGES - 1), `... and ${cut.length - MAX_CHANGES + 1} more`]
+}
+
+/**
+ * The releases a results file reports, each checked for the shape `check`
+ * writes: a release version, the facts that changed and the checks that
+ * failed, by their known names. Anything else throws.
+ */
+export const parseResults = text => {
+  const results = JSON.parse(text)
+  const releases = results?.releases
+  if (!Array.isArray(releases) || releases.length > MAX_RELEASES) throw new Error('the results hold no list of releases')
+  return releases.map(release => {
+    const { version, changed, failed } = release ?? {}
+    if (!isRelease(version)) throw new Error(`not a release: ${JSON.stringify(version)?.slice(0, 80)}`)
+    if (!Array.isArray(changed) || changed.length > MAX_CHANGES || !changed.every(line => isText(line, CHANGE_CHARS))) {
+      throw new Error(`the changes found in ${version} are not a list of lines`)
+    }
+    if (
+      !Array.isArray(failed) ||
+      failed.length > CHECKS.length ||
+      !failed.every(check => CHECKS.includes(check?.name) && isText(check.output, OUTPUT_CHARS + 3))
+    ) {
+      throw new Error(`the failed checks of ${version} are not ones this check runs`)
+    }
+    return { version, changed, failed: failed.map(({ name, output }) => ({ name, output })) }
+  })
+}
+
+const factsOf = binary => {
+  try {
+    return { facts: readFacts(binary) }
+  } catch (error) {
+    console.log(`reading the build failed: ${error.message}`)
+    return { unreadable: true }
+  }
+}
+
+/** What changed in the release, or undefined when it could not be fetched this time. */
+const changesIn = async (version, baseline) => {
+  let binary
+  try {
+    binary = await download(version)
+  } catch (error) {
+    if (error instanceof MissingBuild) {
+      console.log(error.message)
+      return { changed: [NO_BUILD], failed: [] }
+    }
+    warning(`could not download Claude Code ${version}; the next run tries again (${error.message})`)
+    return undefined
+  }
+  try {
+    // The facts are read before the build runs, so nothing it does can change them.
+    const read = factsOf(binary)
+    return {
+      changed: read.unreadable ? [UNREADABLE] : boundedChanges(differences(baseline.facts, read.facts)),
+      failed: relayChecks(binary),
+    }
+  } finally {
+    rmSync(join(WORK, version), { recursive: true, force: true })
+  }
+}
+
+/** Checks each new release and writes what changed to `file`; needs no token. */
+const check = async (baseline, file) => {
+  const requested = process.env.REQUESTED?.trim() || undefined
+  const releases = []
+  const write = () => writeFileSync(file, JSON.stringify({ releases }, null, 2))
+  write()
+  if (requested !== undefined && !isRelease(requested)) {
+    failure(`not a Claude Code release: ${JSON.stringify(requested)}`)
+    return
+  }
+  mkdirSync(WORK, { recursive: true })
+  let versions
+  try {
+    versions = await versionsToCheck(requested, baseline.release)
+  } catch (error) {
+    warning(`could not read Claude Code's releases from npm; the next run tries again (${error.message})`)
+    return
+  }
+  if (versions.length === 0) summary(`No Claude Code release newer than ${baseline.release}.`)
+  for (const version of versions) {
+    const found = await changesIn(version, baseline)
+    if (found === undefined) continue
+    if (found.changed.length === 0 && found.failed.length === 0) {
+      summary(`Claude Code ${version}: nothing the relay relies on changed; validation and tests pass.`)
+      continue
+    }
+    summary(`Claude Code ${version}: ${found.changed.length} fact(s) changed, ${found.failed.length} check(s) failed.`)
+    releases.push({ version, ...found })
+    write()
+  }
+}
+
+const relayIssues = repo =>
   JSON.parse(must('gh', ['issue', 'list', '-R', repo, '--state', 'all', '--limit', '500', '--json', 'number,state,title,body,url,author']))
     .filter(issue => issue.title.endsWith(TITLE_END) && isOwnIssue(issue))
 
-const issueWith = async signature =>
-  (await retry(ATTEMPTS, relayIssues)).find(issue => issue.body.includes(`Signature: \`${signature}\``))
+const issueWith = async (repo, signature) =>
+  (await retry(ATTEMPTS, () => relayIssues(repo))).find(issue => issue.body.includes(`Signature: \`${signature}\``))
 
 /** Opens the issue; a create that failed after GitHub stored it is found, not repeated. */
-const createIssue = async (signature, title, file) => {
+const createIssue = async (repo, signature, title, file) => {
   for (let attempt = 1; ; attempt++) {
     const result = run('gh', ['issue', 'create', '-R', repo, '--title', title, '--body-file', file])
     if (result.status === 0) return result.stdout.trim()
-    const made = await issueWith(signature)
+    const made = await issueWith(repo, signature)
     if (made) return made.url
     if (attempt === ATTEMPTS) throw new Error(`gh issue create exited ${result.status}: ${output(result).slice(-500)}`)
     await sleep(attempt * 20_000)
@@ -230,11 +357,11 @@ const createIssue = async (signature, title, file) => {
  * listed nothing is known to be unrecorded, and an edit adds to an issue the
  * owner already has, so both leave a warning and the next run tries again.
  */
-const report = async (version, checked, changed, failed) => {
+const record = async ({ repo, owner }, { version, changed, failed }, checked) => {
   const signature = signatureOf(checked, changed, failed)
   let known
   try {
-    known = await issueWith(signature)
+    known = await issueWith(repo, signature)
   } catch (error) {
     warning(`could not list this repository's issues for Claude Code ${version}; the next run tries again (${error.message})`)
     return
@@ -264,76 +391,40 @@ const report = async (version, checked, changed, failed) => {
 
   const file = join(WORK, `issue-${version}.md`)
   writeFileSync(file, issueBody(version, checked, changed, failed, signature))
-  const url = await createIssue(signature, `Claude Code ${version}${TITLE_END}`, file)
+  const url = await createIssue(repo, signature, `Claude Code ${version}${TITLE_END}`, file)
   summary(`Claude Code ${version}: opened ${url}`)
   const assigned = run('gh', ['issue', 'edit', url, '-R', repo, '--add-assignee', owner])
   if (assigned.status !== 0) warning(`could not assign ${url} to ${owner}: ${output(assigned).slice(-300)}`)
 }
 
-const factsOf = binary => {
+/** Opens or updates an issue for each release the results file reports. */
+const report = async (baseline, file) => {
+  let releases
   try {
-    return { facts: readFacts(binary) }
+    releases = parseResults(readFileSync(file, 'utf8'))
   } catch (error) {
-    console.log(`reading the build failed: ${error.message}`)
-    return { unreadable: true }
-  }
-}
-
-/** What changed in the release, or undefined when it could not be fetched this time. */
-const changesIn = async (version, baseline) => {
-  let binary
-  try {
-    binary = await download(version)
-  } catch (error) {
-    if (error instanceof MissingBuild) {
-      console.log(error.message)
-      return { changed: [NO_BUILD], failed: [] }
-    }
-    warning(`could not download Claude Code ${version}; the next run tries again (${error.message})`)
-    return undefined
-  }
-  try {
-    const read = factsOf(binary)
-    return {
-      changed: read.unreadable ? [UNREADABLE] : differences(baseline.facts, read.facts),
-      failed: relayChecks(binary),
-    }
-  } finally {
-    rmSync(join(WORK, version), { recursive: true, force: true })
-  }
-}
-
-const check = async (version, baseline) => {
-  const found = await changesIn(version, baseline)
-  if (found === undefined) return
-  const { changed, failed } = found
-  if (changed.length === 0 && failed.length === 0) {
-    summary(`Claude Code ${version}: nothing the relay relies on changed; validation and tests pass.`)
+    failure(`the results of the release check could not be used: ${error.message}`)
     return
   }
-  try {
-    await report(version, baseline.release, changed, failed)
-  } catch (error) {
-    failure(`Claude Code ${version} changes what the relay relies on, and recording it on GitHub failed: ${error.message}\n${changed.join('\n')}`)
+  if (releases.length === 0) summary('No change to record.')
+  mkdirSync(WORK, { recursive: true })
+  const target = { repo: process.env.GITHUB_REPOSITORY, owner: process.env.GITHUB_REPOSITORY_OWNER }
+  for (const release of releases) {
+    try {
+      await record(target, release, baseline.release)
+    } catch (error) {
+      failure(`Claude Code ${release.version} changes what the relay relies on, and recording it on GitHub failed: ${error.message}\n${release.changed.join('\n')}`)
+    }
   }
 }
 
-const main = async () => {
-  if (requested !== undefined && !isRelease(requested)) {
-    failure(`not a Claude Code release: ${JSON.stringify(requested)}`)
+const main = async ([step, file]) => {
+  if (!['check', 'report'].includes(step) || !file) {
+    failure('usage: upstream-check.mjs check|report <results file>')
     return
   }
   const baseline = JSON.parse(readFileSync(BASELINE, 'utf8'))
-  mkdirSync(WORK, { recursive: true })
-  let versions
-  try {
-    versions = await versionsToCheck(baseline.release)
-  } catch (error) {
-    warning(`could not read Claude Code's releases from npm; the next run tries again (${error.message})`)
-    return
-  }
-  if (versions.length === 0) summary(`No Claude Code release newer than ${baseline.release}.`)
-  for (const version of versions) await check(version, baseline)
+  await (step === 'check' ? check(baseline, file) : report(baseline, file))
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) await main()
+if (process.argv[1] === fileURLToPath(import.meta.url)) await main(process.argv.slice(2))
