@@ -14,6 +14,8 @@
       "line",
       "shownAt"
     ],
+    "offeredTurnIsStepTurn": true,
+    "offerInMainLoopStep": true,
     "storeKeys": [
       "known",
       "looksToSkip",
@@ -24,6 +26,76 @@
     "seenWrittenBeforeOffer": true,
     "seenWritesOfLines": 1,
     "sessionsWritesWithId": 5,
-    "sessionsWritesClearingView": 3
+    "sessionsWritesClearingView": 3,
+    "bandReadsSessions": true,
+    "scanHooks": [
+      "command.run",
+      "prompt.submit",
+      "session.detach",
+      "session.end",
+      "turn.step",
+      "ui.render"
+    ],
+    "scanCalls": [
+      "clock.after",
+      "env.get",
+      "model.fork",
+      "prompt.fill",
+      "prompt.read",
+      "prompt.submit",
+      "session.id",
+      "session.surfaces",
+      "session.version",
+      "state.get",
+      "state.set",
+      "store.get",
+      "store.set",
+      "telemetry.log",
+      "telemetry.mark",
+      "ui.invalidate",
+      "ui.resolve",
+      "ui.toast"
+    ],
+    "scanStateReads": [
+      "cc-plugin-you-should-know/aboutOpen"
+    ],
+    "scanStateWrites": [
+      "cc-plugin-you-should-know/aboutOpen"
+    ],
+    "unescapedClosingTags": [
+      "application",
+      "array",
+      "assembly",
+      "block",
+      "category",
+      "commentary",
+      "compatibility",
+      "description",
+      "dict",
+      "doc",
+      "duration",
+      "exchanges",
+      "failures",
+      "file",
+      "key",
+      "language",
+      "name",
+      "plist",
+      "properties",
+      "reason",
+      "reasoning",
+      "role",
+      "row",
+      "scope",
+      "security",
+      "severity",
+      "string",
+      "testcase",
+      "testsuite",
+      "testsuites",
+      "type",
+      "types",
+      "usage"
+    ]
   }
 }

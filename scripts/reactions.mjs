@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 // Shows how the main agent went on after each note heads-up-relay added to a
 // session: the note, then the agent's text and tool calls up to the end of
-// that turn (the next prompt the person typed).
+// that turn (the next prompt the person typed). Each note is headed by its
+// row's uuid, which the relay's debug log names when it adds the note.
 //
+// Run with Node 24 or later, which loads hooks/note.ts directly:
 //   node scripts/reactions.mjs <session.jsonl | session id> [--steps N]
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { cleanText } from '../hooks/note.ts'
 
 const RELAY = 'heads-up-relay'
 const DEFAULT_STEPS = 20
@@ -72,8 +75,8 @@ function noteText(entry) {
   return lines.slice(open + 1, close === -1 ? undefined : close).join('\n')
 }
 
-/** Transcript text without control characters other than tab and newline, so it cannot drive the terminal. */
-const printable = text => String(text).replace(/(?![\t\n])\p{Cc}/gu, '')
+/** Transcript text cleaned as the relay cleans a note, so it cannot drive or hide anything in the terminal. */
+const printable = text => cleanText(String(text), Infinity)
 
 const short = (text, max = TEXT_CHARS) => {
   const flat = printable(text).replace(/\s+/g, ' ').trim()
@@ -122,7 +125,7 @@ function main(argv) {
   process.stdout.write(`${path}\n${notes.length} note(s) from ${RELAY}\n`)
   for (const index of notes) {
     const entry = entries[index]
-    process.stdout.write(`\n== ${entry.timestamp ?? 'unstamped'}\n`)
+    process.stdout.write(`\n== ${entry.timestamp ?? 'unstamped'} ${printable(entry.uuid ?? 'no uuid')}\n`)
     for (const line of noteText(entry).split('\n')) process.stdout.write(`  > ${line}\n`)
     process.stdout.write('  -- then:\n')
     for (const line of reactionsAfter(entries, index, maxSteps)) process.stdout.write(`${line}\n`)

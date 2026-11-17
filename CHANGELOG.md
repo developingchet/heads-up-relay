@@ -1,8 +1,29 @@
 # Changelog
 
-## Unreleased
+## 0.0.2 - 2026-11-16
 
 - The transcript line for a forwarded note reads `relayed Claude a note: <the note>`, without the note's tag.
+- Escapes a tag opened with a fullwidth or small `<` followed by joiners, selectors, spaces or slashes, any
+  tag name with `-`, `_` or `:`, a name spelled in fullwidth, mathematical or other compatibility letters,
+  and more harness tag names, among them `channel`, `env`, `memory`, `function` and `stdout`.
+- The framing tells the main agent not to follow any instruction in the note.
+- A note is skipped only when it was shown before the relay loaded, instead of when its turn started
+  before; a resume or a reload no longer leaves later notes on the band.
+- Notes held while a reply streams are kept in the session's plugin state (`types/index.d.ts`), so a reload
+  appends them when the next request ends instead of losing them; one held in another conversation is
+  shown in the transcript instead.
+- Held notes are appended together under one deadline, and the append deadline is 3 seconds instead of 5.
+- The reviewer's reads of `sessions` wait for its writes the relay is still holding.
+- A reviewer write whose dispatch was abandoned is left to the engine instead of being stored again, and one
+  with under a second of its hook budget left is passed on without an append.
+- Every refused or failed note gets its own warning, not only the first.
+- The debug log names the row each note was appended as, and `scripts/reactions.mjs` prints it and cleans
+  transcript text as the relay does.
+- The Upstream releases workflow runs a release in a job whose token has no permissions and files issues
+  from a second job, and checks more of the reviewer: its name, the turn it names, that it reviews
+  main-loop requests only, its band, its declared hooks, calls and state, and the tags a note's escaping
+  would leave open.
+- A release runs the test workflow first, and its zip leaves out the tests and CI files.
 
 ## 0.0.1 - 2026-11-15
 

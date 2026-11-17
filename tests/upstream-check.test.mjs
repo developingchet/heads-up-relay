@@ -1,12 +1,22 @@
 // Tests for .github/scripts/upstream-check.mjs: which releases it checks, and
-// how it keeps one issue per change.
+// how it keeps one issue per change, and what it accepts from a results file.
 //
 //   node --test tests/upstream-check.test.mjs
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { commandText, isNewer, isOwnIssue, isRelease, issueBody, signatureOf, withRelease } from '../.github/scripts/upstream-check.mjs'
+import {
+  boundedChanges,
+  commandText,
+  isNewer,
+  isOwnIssue,
+  isRelease,
+  issueBody,
+  parseResults,
+  signatureOf,
+  withRelease,
+} from '../.github/scripts/upstream-check.mjs'
 
 test('only release versions are checked', () => {
   for (const version of ['2.1.325', '2.2.0-beta.1', '10.0.0']) assert.equal(isRelease(version), true, version)
@@ -49,7 +59,7 @@ test('a body saved with CRLF line endings still takes the release', () => {
 test('the issue body names each change and failed check', () => {
   const body = issueBody('2.1.326', '2.1.325', ['entryKeys: changed'], [{ name: 'claude plugin validate .', output: 'error: x' }], 'sig')
   assert.match(body, /compared with 2\.1\.325/)
-  assert.match(body, /- entryKeys: changed/)
+  assert.match(body, /```text\nentryKeys: changed\n```/)
   assert.match(body, /### `claude plugin validate \.` failed/)
   assert.match(body, /error: x/)
   assert.match(body, /Signature: `sig`$/)
@@ -58,6 +68,52 @@ test('the issue body names each change and failed check', () => {
 test('check output cannot close its code fence', () => {
   const body = issueBody('2.1.326', '2.1.325', [], [{ name: 'claude plugin test .', output: 'a\n```\n@someone\n````' }], 'sig')
   assert.match(body, /\n`````text\na\n```\n@someone\n````\n`````\n/)
+})
+
+test('changed lines are quoted, so they cannot add markdown or mentions', () => {
+  const body = issueBody('2.1.326', '2.1.325', ['viewKeys: @someone', '```', '### Next steps'], [], 'sig')
+  assert.match(body, /\n````text\nviewKeys: @someone\n```\n### Next steps\n````\n/)
+  assert.equal(body.match(/^### Next steps$/gm).length, 2)
+})
+
+const RESULT = {
+  version: '2.1.326',
+  changed: ['viewKeys: changed'],
+  failed: [{ name: 'claude plugin validate .', output: 'error: x' }],
+}
+const results = releases => JSON.stringify({ releases })
+
+test('a results file of the expected shape is read back as written', () => {
+  assert.deepEqual(parseResults(results([RESULT])), [RESULT])
+  assert.deepEqual(parseResults(results([])), [])
+  assert.deepEqual(parseResults(results([{ ...RESULT, failed: [{ ...RESULT.failed[0], extra: 1 }] }])), [RESULT])
+})
+
+test('a results file of any other shape is refused', () => {
+  const refused = {
+    'not JSON': 'releases',
+    'no list': JSON.stringify({ releases: 'all' }),
+    'too many releases': results(Array.from({ length: 11 }, () => RESULT)),
+    'a version that is a path': results([{ ...RESULT, version: '../2.1.326' }]),
+    'changes that are not lines': results([{ ...RESULT, changed: [{ line: 'x' }] }]),
+    'a change too long': results([{ ...RESULT, changed: ['x'.repeat(2001)] }]),
+    'too many changes': results([{ ...RESULT, changed: Array.from({ length: 51 }, () => 'x') }]),
+    'an unknown check': results([{ ...RESULT, failed: [{ name: 'gh issue create', output: 'x' }] }]),
+    'output too long': results([{ ...RESULT, failed: [{ ...RESULT.failed[0], output: 'x'.repeat(4004) }] }]),
+    'no failed list': results([{ ...RESULT, failed: undefined }]),
+    'more failed checks than there are': results([{ ...RESULT, failed: [RESULT.failed[0], RESULT.failed[0], RESULT.failed[0]] }]),
+  }
+  for (const [name, text] of Object.entries(refused)) assert.throws(() => parseResults(text), undefined, name)
+})
+
+test('a large difference is cut to what a results file accepts, and still read back', () => {
+  const changed = boundedChanges([`unescapedClosingTags: new in this build: ${'tag, '.repeat(1000)}`, ...Array.from({ length: 60 }, (_, i) => `fact${i}: changed`)])
+  assert.equal(changed.length, 50)
+  assert.equal(changed[0].length, 2000)
+  assert.match(changed[0], / \.\.\.$/)
+  assert.equal(changed.at(-1), '... and 12 more')
+  assert.deepEqual(parseResults(results([{ ...RESULT, changed }]))[0].changed, changed)
+  assert.deepEqual(boundedChanges(['viewKeys: changed']), ['viewKeys: changed'])
 })
 
 test('only issues the workflow opened are matched', () => {

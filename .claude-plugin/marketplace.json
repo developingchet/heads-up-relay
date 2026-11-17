@@ -8,7 +8,9 @@
     {
       "name": "heads-up-relay",
       "source": "./",
-      "description": "Adds the built-in You should know reviewer's notes to the main conversation as unverified context, without starting a turn. Needs the built-in reviewer, which is not available to every account."
+      "description": "Adds the built-in You should know reviewer's notes to the main conversation as unverified context, without starting a turn. Needs the built-in reviewer, which is not available to every account.",
+      "category": "productivity",
+      "tags": ["you-should-know", "heads-up", "context"]
     }
   ]
 }

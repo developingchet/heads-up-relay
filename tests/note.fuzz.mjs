@@ -30,6 +30,8 @@ const TOKENS = [
   '<', '</', '< /', cp(0xff1c), cp(0xfe64), '>',
   'system-reminder', 'system_prompt', 'user', 'User', 'assistant', 'human', 'function_calls',
   'invoke', 'parameter', 'task-notification', 'local-command-stdout', 'tool_result', 'antml:invoke',
+  'channel', 'claude_md', 'cross-session-message', 'env', 'memory', 'stdout', 'function', '/', cp(0xff0f),
+  cp(0xff53), cp(0xff59), cp(0xff53, 0xff54, 0xff45, 0xff4d), cp(0x1d42c), cp(0x1d42e), 'ystem', 'ser', cp(0xff3f),
   '`', '``', '```', '````', '~~~',
   cp(0x200b), cp(0x200c), cp(0x200d), cp(0xfe0e), cp(0xfe0f), cp(0x20e3), cp(0xfeff),
   cp(0x202e), cp(0x2066), cp(0x200f), cp(0x061c), cp(0xe0041), cp(0xe007f), cp(0x3164),
@@ -61,11 +63,20 @@ const longestBacktickRun = value => Math.max(0, ...(value.match(/`+/g) ?? []).ma
 const FORBIDDEN = new RegExp(`(?![\\t\\n${cp(0x200c)}${cp(0x200d)}${cp(0xfe0e)}${cp(0xfe0f)}])[\\p{Cc}\\p{Cf}\\p{Default_Ignorable_Code_Point}${cp(0xfffe)}${cp(0xffff)}${cp(0x2028)}${cp(0x2029)}\\r]`, 'u')
 const LINE_BREAK = new RegExp(`[\\n\\r${cp(0x2028)}${cp(0x2029)}]`)
 
-// A tag opener the relay escapes: `<` in any width, up to three spaces and a
-// slash, then an envelope, role, tool-call or namespaced name.
-const OPENER = `[<${cp(0xff1c)}${cp(0xfe64)}]`
+// Tag names the note must never open or close, listed rather than read from
+// the relay's rule, so a rule that stops covering one fails here.
+const PROTECTED_NAMES = [
+  'system-reminder', 'system_prompt', 'system', 'user', 'human', 'assistant', 'function_calls', 'invoke',
+  'parameter', 'task-notification', 'local-command-stdout', 'tool_result', 'antml:invoke', 'channel',
+  'claude_md', 'cross-session-message', 'env', 'memory', 'stdout', 'function',
+]
+
+// What hides nothing between a bracket and a name: the note is read in NFKC
+// form, so compatibility letters read as the name they spell; space, joiners
+// and selectors are dropped before the check, and any slashes are allowed.
+const FILLER = new RegExp(`[\\s${cp(0x200c)}${cp(0x200d)}${cp(0xfe0e)}${cp(0xfe0f)}]`, 'gu')
 const PROTECTED = new RegExp(
-  `${OPENER}(?=\\s{0,3}\\/?\\s{0,3}(?:system|user|human|assistant|function_calls|invoke|parameters?|task|tool[\\w-]*|local|[a-z]+:[\\w-]+)(?:[_-][\\w-]*)?(?!\\w))`,
+  `[<${cp(0xff1c)}${cp(0xfe64)}]\\/*(?:${PROTECTED_NAMES.join('|')})(?![a-z0-9])`,
   'i',
 )
 
@@ -121,7 +132,37 @@ test('the note cannot close its fence', () => {
 test('the note cannot open or close a protected tag', () => {
   fc.assert(
     fc.property(note, value => {
-      assert.doesNotMatch(fencedNote(value), PROTECTED)
+      assert.doesNotMatch(fencedNote(value).normalize('NFKC').replace(FILLER, ''), PROTECTED)
+    }),
+    RUNS,
+  )
+})
+
+// Each letter of a name as itself, in upper case, or as a fullwidth,
+// mathematical bold, sans-serif or monospace letter; each `-`, `_` and `:` as
+// itself or a small or fullwidth form. All of them read as the name in NFKC.
+const LETTER_FORMS = [0, 0xff41, 0x1d41a, 0x1d5ba, 0x1d68a]
+const MARK_FORMS = { '-': ['-', cp(0xfe63), cp(0xff0d)], _: ['_', cp(0xfe4d), cp(0xff3f)], ':': [':', cp(0xfe55), cp(0xff1a)] }
+const spelled = name =>
+  fc.tuple(...Array.from(name, char => {
+    if (char in MARK_FORMS) return fc.constantFrom(...MARK_FORMS[char])
+    const offset = char.charCodeAt(0) - 0x61
+    return fc.constantFrom(...LETTER_FORMS).map(base =>
+      base === 0 ? char : offset >= 0 && offset < 26 ? cp(base + offset) : char)
+  })).map(chars => chars.join(''))
+
+const disguisedTag = fc.constantFrom(...PROTECTED_NAMES).chain(name =>
+  fc.tuple(
+    fc.constantFrom('<', '</', cp(0xff1c), cp(0xfe64), `<${cp(0xff0f)}`, `< ${cp(0x200d)}/`),
+    spelled(name.toLowerCase()),
+    fc.constantFrom('>', cp(0xff1e), ' x="1">', ''),
+  ).map(parts => parts.join('')))
+
+test('a protected tag spelled in compatibility letters is escaped too', () => {
+  fc.assert(
+    fc.property(text, disguisedTag, text, (before, tag, after) => {
+      const fenced = fencedNote({ line: `${before}${tag}${after}`, tag: 'Heads up', isTagged: true, explanation: '' })
+      assert.doesNotMatch(fenced.normalize('NFKC').replace(FILLER, ''), PROTECTED)
     }),
     RUNS,
   )
