@@ -136,16 +136,29 @@ const NAME_CHARS = 64
 
 const ESCAPED_AFTER = new RegExp(`^${FILLER}(?:${ESCAPED_NAME})`, 'iu')
 
+// Joiners and selectors inside a name. Cleaning keeps them after a letter
+// outside ASCII, such as a mathematical one, where they would split
+// `𝐮` + selector + `ser` from the `user` it reads as.
+const JOINER = '[\\u200C\\u200D\\uFE0E\\uFE0F]'
+const NAME_JOINERS = new RegExp(JOINER, 'gu')
+
+// The first NAME_CHARS characters after the filler, not counting joiners and
+// selectors, however many stand between them, so a run of them cannot push
+// the rest of a name out of the window.
+const NAME_WINDOW = `(?:${JOINER}*(?!${JOINER})[^]){0,${NAME_CHARS}}`
+
 /**
  * Whether the text after a bracket names an escaped tag. It is read in NFKC
- * form, so a name spelled partly or wholly in fullwidth, mathematical or other
- * compatibility letters counts as the name it reads as.
+ * form without joiners or selectors, so a name spelled partly or wholly in
+ * fullwidth, mathematical or other compatibility letters counts as the name
+ * it reads as.
  */
-function namesEscapedTag(text: string, from: number, filler: RegExp): boolean {
+function namesEscapedTag(text: string, from: number, filler: RegExp, window: RegExp): boolean {
   filler.lastIndex = from
   filler.exec(text)
   const nameAt = filler.lastIndex
-  const name = Array.from(text.slice(nameAt, nameAt + NAME_CHARS * 2)).slice(0, NAME_CHARS).join('')
+  window.lastIndex = nameAt
+  const name = (window.exec(text)?.[0] ?? '').replace(NAME_JOINERS, '')
   return ESCAPED_AFTER.test(`${text.slice(from, nameAt)}${name}`.normalize('NFKC'))
 }
 
@@ -156,7 +169,9 @@ function namesEscapedTag(text: string, from: number, filler: RegExp): boolean {
  */
 function escapeTags(text: string): string {
   const filler = new RegExp(FILLER, 'uy')
-  return text.replace(BRACKET, (bracket, at: number) => (namesEscapedTag(text, at + 1, filler) ? '&lt;' : bracket))
+  const window = new RegExp(NAME_WINDOW, 'uy')
+  return text.replace(BRACKET, (bracket, at: number) =>
+    (namesEscapedTag(text, at + 1, filler, window) ? '&lt;' : bracket))
 }
 
 /** Whether a tag of this name is escaped in a note the main agent reads. */

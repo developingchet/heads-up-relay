@@ -44,8 +44,13 @@ jobs:
       - name: Package and checksum
         env:
           VERSION: ${{ steps.version.outputs.version }}
+        # The zip holds the plugin and its documents only. The paths are left
+        # out here rather than with export-ignore, which would also hide them
+        # from GitHub's source archives and the tools that read those.
         run: |
-          git archive --format=zip -o "heads-up-relay-$VERSION.zip" HEAD
+          git archive --format=zip -o "heads-up-relay-$VERSION.zip" HEAD -- . \
+            ':(exclude).github' ':(exclude)tests' ':(exclude)scripts/reviewer-facts.mjs' \
+            ':(exclude)tsconfig.json' ':(exclude).gitattributes' ':(exclude).gitignore'
           sha256sum "heads-up-relay-$VERSION.zip" > checksums.txt
           cat checksums.txt
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3

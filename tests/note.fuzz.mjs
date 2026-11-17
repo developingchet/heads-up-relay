@@ -71,12 +71,13 @@ const PROTECTED_NAMES = [
   'claude_md', 'cross-session-message', 'env', 'memory', 'stdout', 'function',
 ]
 
-// What hides nothing between a bracket and a name: the note is read in NFKC
-// form, so compatibility letters read as the name they spell; space, joiners
-// and selectors are dropped before the check, and any slashes are allowed.
-const FILLER = new RegExp(`[\\s${cp(0x200c)}${cp(0x200d)}${cp(0xfe0e)}${cp(0xfe0f)}]`, 'gu')
+// What hides nothing in a tag: the note is read in NFKC form, so compatibility
+// letters read as the name they spell; joiners and selectors are dropped
+// wherever they stand, and any space or slashes may stand between the bracket
+// and the name. Space inside a name ends it, as it does for a tag.
+const FILLER = new RegExp(`[${cp(0x200c)}${cp(0x200d)}${cp(0xfe0e)}${cp(0xfe0f)}]`, 'gu')
 const PROTECTED = new RegExp(
-  `[<${cp(0xff1c)}${cp(0xfe64)}]\\/*(?:${PROTECTED_NAMES.join('|')})(?![a-z0-9])`,
+  `[<${cp(0xff1c)}${cp(0xfe64)}][\\s/]*(?:${PROTECTED_NAMES.join('|')})(?![a-z0-9])`,
   'i',
 )
 
@@ -143,12 +144,16 @@ test('the note cannot open or close a protected tag', () => {
 // itself or a small or fullwidth form. All of them read as the name in NFKC.
 const LETTER_FORMS = [0, 0xff41, 0x1d41a, 0x1d5ba, 0x1d68a]
 const MARK_FORMS = { '-': ['-', cp(0xfe63), cp(0xff0d)], _: ['_', cp(0xfe4d), cp(0xff3f)], ':': [':', cp(0xfe55), cp(0xff1a)] }
+// A letter outside ASCII may also be followed by a run of joiners and
+// selectors, which cleaning keeps there.
+const JOINER_RUN = fc.array(fc.constantFrom(cp(0x200c), cp(0x200d), cp(0xfe0e), cp(0xfe0f)), { maxLength: 20 })
+  .map(run => run.join(''))
 const spelled = name =>
   fc.tuple(...Array.from(name, char => {
     if (char in MARK_FORMS) return fc.constantFrom(...MARK_FORMS[char])
     const offset = char.charCodeAt(0) - 0x61
-    return fc.constantFrom(...LETTER_FORMS).map(base =>
-      base === 0 ? char : offset >= 0 && offset < 26 ? cp(base + offset) : char)
+    return fc.tuple(fc.constantFrom(...LETTER_FORMS), JOINER_RUN).map(([base, run]) =>
+      base === 0 || offset < 0 || offset >= 26 ? char : cp(base + offset) + run)
   })).map(chars => chars.join(''))
 
 const disguisedTag = fc.constantFrom(...PROTECTED_NAMES).chain(name =>
@@ -166,6 +171,20 @@ test('a protected tag spelled in compatibility letters is escaped too', () => {
     }),
     RUNS,
   )
+})
+
+test('a selector inside a name in mathematical letters does not hide the tag', () => {
+  const fullwidthPadded = Array.from('system', char => cp(0xff41 + char.charCodeAt(0) - 0x61) + cp(0x200c).repeat(16)).join('')
+  for (const line of [
+    `<${cp(0x1d42e, 0xfe0f)}ser`,
+    `</${cp(0x1d42c, 0x200d)}ystem-reminder>`,
+    `<${cp(0x1d42e, 0xfe0e, 0xfe0f)}ser>`,
+    `<${cp(0x1d42e)}${cp(0xfe0f).repeat(70)}ser>`,
+    `<${fullwidthPadded}-reminder>`,
+  ]) {
+    const fenced = fencedNote({ line, tag: 'Heads up', isTagged: true, explanation: '' })
+    assert.doesNotMatch(fenced.normalize('NFKC').replace(FILLER, ''), PROTECTED)
+  }
 })
 
 test('the framing around the note stays first and last', () => {

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.3 - 2026-11-16
+
+- Escapes a tag whose name has joiners or variation selectors after a letter outside ASCII, such as
+  `<𝐮` + U+FE0F + `ser>`, which reads as `<user>`, however long the runs of them are.
+- The fuzz tests spell protected names with such runs, allow space only between a tag's bracket and its
+  name, as a tag does, and keep these cases as fixed tests.
+- The release zip leaves out the tests and CI files with `git archive` pathspecs instead of
+  `export-ignore`, so GitHub's source archives, which OpenSSF Scorecard reads, include the workflows again.
+
 ## 0.0.2 - 2026-11-16
 
 - The transcript line for a forwarded note reads `relayed Claude a note: <the note>`, without the note's tag.
