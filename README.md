@@ -125,7 +125,7 @@ does starting a session with `--safe-mode`.
 
 3. Answer the prompts. Pick a scope (the user scope, first in the list, loads it in every session) with
    Enter, then set `mode` on the options screen, or keep the default, `append`; `receipt` is on the same
-   screen, and keeps its default, `summary`, unless the full note is wanted after each relay line. The hooks
+   screen, and keeps its default, `summary`, unless the note is wanted after each relay line. The hooks
    run in that session from then on, with no restart, and in every later session under the user scope. If
    the summary says a reload is pending, run `/reload-plugins`.
 
@@ -238,8 +238,9 @@ else reads it, line and paragraph separators become new lines; control, format a
 and U+FFFF are dropped, keeping the joiners and variation selectors that words and emoji need (one after
 ASCII is dropped too, since it joins nothing there and could hide a tag); runs of blank lines are collapsed;
 and the tag, note and explanation together are cut to 1,500 characters on a character boundary, ending in
-` …` — unless `receipt` is `expanded`, which sends the whole note with no cut, so the transcript shows the
-same text the main agent read, before its copy was fenced and its envelope-like tags escaped. Then the `<` (or a fullwidth or small one) of a tag named like a
+` …`, or to 8,000 with `receipt: expanded`. The same cut applies to the transcript's copy, so it shows the
+same text the main agent read, before that copy was fenced and its envelope-like tags escaped. Then the `<`
+(or a fullwidth or small one) of a tag named like a
 conversation envelope, role, tool call or harness block becomes `&lt;`, whatever spaces, slashes, joiners or
 variation selectors stand between it and the name, so the note could not open or close one even if a later
 release wrapped appended rows. That is any name, in any case, with a `-`, `_` or `:` after its first letter
@@ -301,7 +302,7 @@ the next prompt when the switch is on.
 | Option | Values | Default |
 | ------ | ------ | ------- |
 | `mode` | `append`: add notes to the main conversation and take them off the band. `log`: write notes to the transcript only, which the model does not read; the band is kept. `off`: register no hooks. | `append` |
-| `receipt` | `summary`: one line in the transcript naming each note relayed. `expanded`: that line followed by the note in full, explanation included, each line marked `│ `, with the 1,500-character cut lifted — for the appended row the model reads, for the transcript copy after it, and for a note shown in the transcript because it could not be appended — so the transcript carries the same text the model read, before the model's copy is fenced and its envelope-like tags escaped (append mode only; `log` mode already writes the full note). An unreadable value falls back to `summary`. | `summary` |
+| `receipt` | `summary`: one line in the transcript naming each note relayed. `expanded`: that line followed by the note, explanation included, each line marked `│ `, and every note cut at 8,000 characters instead of 1,500 — the appended row the model reads, the transcript copy after it, a note shown in the transcript because it could not be appended, and each note `log` mode writes — so the transcript carries the same text the model read, before the model's copy is fenced and its envelope-like tags escaped. The model reads the longer note too, and it stays in the conversation for every later request. An unreadable value falls back to `summary`. | `summary` |
 
 Set it with `/config`, or under
 [`pluginConfigs`](https://code.claude.com/docs/en/plugins/mods/reference#settings-and-environment-variables)
@@ -324,7 +325,7 @@ Loaded with `--plugin-dir`, the key is `heads-up-relay@inline` (2.1.325 also rea
 
 ## Known limits
 
-- The person sees a forwarded note's line in the transcript, and with `receipt: expanded` the note in full
+- The person sees a forwarded note's line in the transcript, and with `receipt: expanded` the note itself,
   but not the framing the main agent reads; the appended row is in the transcript file in full, with the
   plugin as its origin.
 - Clearing a forwarded note's `view` ends the reviewer's pause while a note is on screen, so it may ask again

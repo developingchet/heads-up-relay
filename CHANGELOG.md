@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.5 - 2026-11-20
+
+- `receipt: expanded` cuts each note at 8,000 characters instead of not at all. Without a cut, one long note
+  stayed in the conversation for every later request, and a note with a long run of joiners after a letter
+  outside ASCII held up the session for seconds while it was cleaned. The `/config` description now says the
+  setting raises the cut for the copy Claude reads, not only the transcript's.
+- Dropping a run of joiners or variation selectors after ASCII takes time in proportion to the run, not its
+  square.
+- A note with hundreds of thousands of backtick runs is fenced instead of failing with
+  `Maximum call stack size exceeded` and staying on the band.
+- `log` mode follows `receipt` too: each note it writes is cut at 1,500 characters, or 8,000 with
+  `expanded`, the same as a held note it shows when the relay loads.
+- A held note shown in the transcript because its append missed the deadline is not written out a second
+  time when the append is stored after all; the late receipt line names it.
+
 ## 0.0.4 - 2026-11-19
 
 - New `receipt` option, set in `/config` or `pluginConfigs`: `summary` (the default) keeps the transcript to

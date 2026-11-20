@@ -10,6 +10,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import fc from 'fast-check'
 import {
+  EXPANDED_NOTE_CHARS,
   MAX_NOTE_CHARS,
   ONE_LINE_CHARS,
   cleanText,
@@ -103,6 +104,57 @@ test('cleaned text is cut to the note limit', () => {
     }),
     RUNS,
   )
+})
+
+test('cleaned text is cut to the expanded limit', () => {
+  fc.assert(
+    fc.property(fc.array(text, { maxLength: 4 }).map(parts => parts.join('').repeat(40)), value => {
+      assert.ok(Array.from(cleanText(value, EXPANDED_NOTE_CHARS)).length <= EXPANDED_NOTE_CHARS + 2)
+    }),
+    { numRuns: 300 },
+  )
+})
+
+// The stray-joiner rule in its plainest form: a joiner or selector that only
+// joiners and selectors separate from the start, from ASCII or from a
+// fullwidth or small `<` is dropped, unless U+20E3 follows it.
+const JOINER_CLASS = `${cp(0x200c)}${cp(0x200d)}${cp(0xfe0e)}${cp(0xfe0f)}`
+const STRAY_RULE = new RegExp(
+  `(?<=(?:^|[\\x00-\\x7F${cp(0xff1c)}${cp(0xfe64)}])[${JOINER_CLASS}]*)[${JOINER_CLASS}](?!${cp(0x20e3)})`,
+  'gu',
+)
+
+// Characters no other cleaning step changes, so only the joiner rule acts.
+const joinerText = fc
+  .array(fc.constantFrom(
+    'a', '1', ' ', '<', cp(0xff1c), cp(0xfe64), 'é', cp(0x1d42e), cp(0x1f600), cp(0x20e3),
+    cp(0x200c), cp(0x200d), cp(0xfe0e), cp(0xfe0f),
+  ), { maxLength: 60 })
+  .map(parts => parts.join(''))
+
+test('joiners and selectors are dropped exactly where the rule says', () => {
+  fc.assert(
+    fc.property(joinerText, value => {
+      assert.equal(cleanText(value), value.replace(STRAY_RULE, ''))
+    }),
+    RUNS,
+  )
+})
+
+test('cleaning a long run of joiners takes time in proportion to it', () => {
+  const run = `é${cp(0x200d).repeat(200_000)}`
+  const started = performance.now()
+  const cleaned = cleanText(run, 250_000)
+  // The quadratic form of the rule takes tens of seconds on this run.
+  assert.ok(performance.now() - started < 2_000)
+  assert.equal(cleaned, run)
+})
+
+test('a note with a huge number of backtick runs is still fenced', () => {
+  const value = { line: 'x', tag: 'Heads up', isTagged: true, explanation: '` '.repeat(300_000) }
+  const lines = fencedNote(value, 1_000_000).split('\n')
+  assert.equal(lines[0], '```text')
+  assert.equal(lines.at(-1), '```')
 })
 
 test('a one-line quote has no line break and stays short', () => {
