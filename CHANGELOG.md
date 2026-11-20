@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.0.4 - 2026-11-19
+
+- New `receipt` option, set in `/config` or `pluginConfigs`: `summary` (the default) keeps the transcript to
+  one line naming each note relayed; `expanded` follows that line with the whole note, explanation included,
+  each line marked `│ `.
+- With `receipt: expanded` the 1,500-character cut is lifted — for the appended row, the transcript copy
+  after its receipt line, and a note shown in the transcript because it could not be appended — so the
+  transcript carries the same text the main agent read, before the model's copy is fenced and its
+  envelope-like tags escaped. An unreadable value falls back to `summary`.
+
 ## 0.0.3 - 2026-11-16
 
 - Escapes a tag whose name has joiners or variation selectors after a letter outside ASCII, such as

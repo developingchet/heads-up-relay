@@ -1,6 +1,8 @@
 import type { EngineInterface as Engine, Next, Origin, Register, Timer } from 'claude-code'
 import type { HeldNote, ReviewerNote } from '../types'
 import {
+  FULL_NOTE_CHARS,
+  MAX_NOTE_CHARS,
   REVIEWER,
   contextText,
   hasOffer,
@@ -50,6 +52,9 @@ const SETTLED = { value: undefined } as const
 
 type Mode = 'append' | 'log'
 
+/** How much of a relayed note the transcript line after it shows. */
+type Receipt = 'summary' | 'expanded'
+
 /** One main-loop model request, from its start until its stream ends or is aborted. */
 type Reply = { readonly turnId: string; readonly index: number }
 
@@ -59,6 +64,8 @@ type Appended = { readonly uuid: string } | { readonly refusal: string }
 /** What one load of the module remembers between the reviewer's writes. */
 type Relay = {
   readonly mode: Mode
+  /** Whether a forwarded note is followed in the transcript by its full text. */
+  readonly receipt: Receipt
   /**
    * Each note handled, by key: whether it is now in the main conversation.
    * Every write that carries the note waits on the same answer.
@@ -176,13 +183,23 @@ function sessionIdOf($: Engine, relay: Relay): Promise<string> {
 }
 
 /**
+ * The most characters of one note this receipt setting passes on: the expanded
+ * setting sends and shows the whole note, so the transcript carries exactly
+ * what the main agent read.
+ */
+const noteMax = (relay: Relay): number =>
+  relay.receipt === 'expanded' ? FULL_NOTE_CHARS : MAX_NOTE_CHARS
+
+/**
  * Puts one transcript line where the person sees what the main agent was
- * given, and clears the status line.
+ * given, and clears the status line. In the expanded setting the note itself
+ * follows, marked line for line and whole, as it reached the main agent.
  */
 function receipt($: Engine, relay: Relay, note: ReviewerNote, uuid: string, isLate = false): void {
   try {
     debug($, `forwarded a ${oneLine(note.tag)} note about turn ${oneLine(note.reviewedTurn ?? '')} as row ${uuid}`)
     $.ui.log(`relayed Claude a note${isLate ? ' after all' : ''}: ${oneLine(note.line)}`)
+    if (relay.receipt === 'expanded') $.ui.log(transcriptText(note, noteMax(relay)))
     delivered($, relay)
   } catch (error) {
     debug($, `reporting a forwarded note failed: ${reasonOf(error)}`)
@@ -192,11 +209,12 @@ function receipt($: Engine, relay: Relay, note: ReviewerNote, uuid: string, isLa
 /**
  * Starts the append; it resolves to the stored row's id or the refusal. The
  * call is made before the first await, so appends started one after another
- * are stored in that order, and a call that throws is a refusal too.
+ * are stored in that order, and a call that throws is a refusal too. `max` is
+ * how much of the note the row carries.
  */
-async function appendRow($: Engine, note: ReviewerNote): Promise<Appended> {
+async function appendRow($: Engine, note: ReviewerNote, max: number): Promise<Appended> {
   try {
-    const stored = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: contextText(note) }] } })
+    const stored = await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: contextText(note, max) }] } })
     return stored.deny === undefined ? { uuid: stored.uuid } : { refusal: oneLine(String(stored.deny)) }
   } catch (error) {
     return { refusal: reasonOf(error) }
@@ -235,10 +253,10 @@ async function settle(row: Promise<Appended>, elapsed: Promise<'timed out'>, onL
  * not see as typed. It starts no turn: a running turn reads it from its next
  * request, an idle session from the next prompt.
  */
-async function append($: Engine, note: ReviewerNote, onLate: (uuid: string) => void): Promise<Appended> {
+async function append($: Engine, relay: Relay, note: ReviewerNote, onLate: (uuid: string) => void): Promise<Appended> {
   const limit = deadline($)
   try {
-    return await settle(appendRow($, note), limit.elapsed, onLate)
+    return await settle(appendRow($, note, noteMax(relay)), limit.elapsed, onLate)
   } finally {
     limit.cancel()
   }
@@ -332,7 +350,7 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
 
   // A late append is in the conversation after all: the reviewer's next
   // write of the note takes it off the band.
-  const appended = await append($, note, uuid => {
+  const appended = await append($, relay, note, uuid => {
     relay.handled.set(key, Promise.resolve(true))
     receipt($, relay, note, uuid, true)
   })
@@ -346,12 +364,13 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
 
 /**
  * Writes a held note in full to the transcript: it is off the band already,
- * so this is where the person still sees it.
+ * so this is where the person still sees it. The expanded setting writes it
+ * whole, as it does for a note that reached the main agent.
  */
 function showInstead($: Engine, relay: Relay, note: ReviewerNote, reason: string): void {
   warn($, relay, 'held-not-sent', `a note held until Claude's reply ended was not added to the conversation (${reason}); it is shown here instead.`, { isPerNote: true })
   try {
-    $.ui.log(transcriptText(note))
+    $.ui.log(transcriptText(note, noteMax(relay)))
   } catch (error) {
     debug($, `showing a held note failed: ${reasonOf(error)}`)
   }
@@ -376,7 +395,7 @@ async function flush($: Engine, relay: Relay): Promise<void> {
   if (notes.length === 0) return
 
   const limit = deadline($)
-  const pending = notes.map(note => ({ note, row: appendRow($, note) }))
+  const pending = notes.map(note => ({ note, row: appendRow($, note, noteMax(relay)) }))
   const outcomes = await Promise.all(pending.map(async ({ note, row }) => ({
     note,
     appended: await settle(row, limit.elapsed, uuid => receipt($, relay, note, uuid, true)),
@@ -523,6 +542,13 @@ function startReply($: Engine, relay: Relay, step: Reply, signal: AbortSignal): 
 const modeOf = (value: unknown): Mode | undefined =>
   value === 'append' || value === 'log' ? value : undefined
 
+/**
+ * The transcript receipt setting: anything but `expanded`, set or not, is the
+ * one-line summary, so an unreadable value takes nothing away.
+ */
+const receiptOf = (value: unknown): Receipt =>
+  value === 'expanded' ? 'expanded' : 'summary'
+
 export const register: Register = (on, options) => {
   // `off`: no hooks, so the reviewer runs untouched.
   const mode = modeOf(options.mode)
@@ -530,6 +556,7 @@ export const register: Register = (on, options) => {
 
   const relay: Relay = {
     mode,
+    receipt: receiptOf(options.receipt),
     handled: new Map(),
     warned: new Set(),
     isStatusShown: false,
