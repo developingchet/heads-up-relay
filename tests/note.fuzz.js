@@ -4,7 +4,7 @@
 // pass a transcript line off as the relay's own.
 //
 // Run with Node 24 or later, which loads hooks/note.ts directly:
-//   npm ci --prefix tests && node --test tests/note.fuzz.mjs
+//   npm ci --prefix tests && node --test tests/note.fuzz.js
 
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
