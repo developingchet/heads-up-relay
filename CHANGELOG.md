@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.7 - 2026-11-20
+
+- A note written to the transcript (with `receipt: expanded`, in `log` mode, or when a held note cannot be
+  appended) is written one entry per line. Claude Code draws each entry a plugin logs as one row, with every
+  line break in it shown as `�`, so a note logged whole ran together on one row. A line longer than the
+  2,000 UTF-16 code units Claude Code draws of an entry goes on in the next, broken at a space in the
+  entry's second half where there is one and between characters otherwise, and a note that would take more
+  than 100 entries stops at the 100th, `│ …`. The copy the main agent reads is unchanged.
+
 ## 0.0.6 - 2026-11-20
 
 - Checked against Claude Code 2.1.329, which CI now runs and the release baseline is read from.

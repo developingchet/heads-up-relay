@@ -228,15 +228,55 @@ export const oneLine = (text: string, max = ONE_LINE_CHARS): string =>
   cut(cleanText(text, readLimit(max)).replace(/\s+/g, ' ').trim(), max)
 
 /**
- * The note as transcript lines, each marked so a line in the note cannot pass
- * for one the relay wrote. The expanded receipt passes `EXPANDED_NOTE_CHARS`,
- * the cut the main agent's copy gets too.
+ * The most of one transcript entry Claude Code shows, in UTF-16 code units;
+ * it cuts the rest. It also shows each entry as one row, drawing every line
+ * break in it as U+FFFD, so a note is written to the transcript one entry per
+ * line.
  */
-export const transcriptText = (note: ReviewerNote, max = MAX_NOTE_CHARS): string =>
-  cleanText(logText(note), max)
+export const LOG_ENTRY_UNITS = 2000
+
+/**
+ * The most transcript entries one note takes. A note's lines are seldom more
+ * than a few dozen; this bounds the rows a note of many short lines adds.
+ */
+export const MAX_LOG_ENTRIES = 100
+
+/** What starts each transcript line of a note, so none can pass for one the relay wrote. */
+const NOTE_MARK = '│ '
+
+const isHighSurrogate = (unit: number): boolean => unit >= 0xd800 && unit <= 0xdbff
+
+/**
+ * `line` in pieces of at most `max` code units, never splitting a surrogate
+ * pair. A piece ends at the last space in its second half where there is one,
+ * and that space is dropped; a space that ends the line leaves no empty piece.
+ */
+const pieces = (line: string, max: number): string[] => {
+  if (line.length <= max) return [line]
+  const end = isHighSurrogate(line.charCodeAt(max - 1)) ? max - 1 : max
+  const space = line.lastIndexOf(' ', end)
+  const [head, rest] = space > end / 2
+    ? [line.slice(0, space), line.slice(space + 1)]
+    : [line.slice(0, end), line.slice(end)]
+  return rest === '' ? [head] : [head, ...pieces(rest, max)]
+}
+
+/**
+ * The note as transcript entries, one per line, each marked so a line in the
+ * note cannot pass for one the relay wrote. A line too long for one entry
+ * goes on in the next, and a note that would take more than MAX_LOG_ENTRIES
+ * entries ends in a marked `…`. The expanded receipt passes
+ * `EXPANDED_NOTE_CHARS`, the cut the main agent's copy gets too.
+ */
+export const transcriptLines = (note: ReviewerNote, max = MAX_NOTE_CHARS): string[] => {
+  const lines = cleanText(logText(note), max)
     .split('\n')
-    .map(line => `│ ${line}`)
-    .join('\n')
+    .flatMap(line => pieces(line, LOG_ENTRY_UNITS - NOTE_MARK.length))
+    .map(line => `${NOTE_MARK}${line}`)
+  return lines.length <= MAX_LOG_ENTRIES
+    ? lines
+    : [...lines.slice(0, MAX_LOG_ENTRIES - 1), `${NOTE_MARK}…`]
+}
 
 /** A backtick fence longer than any run of backticks in `text`, so it cannot close early. */
 const fenceFor = (text: string): string => {

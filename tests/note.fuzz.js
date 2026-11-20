@@ -11,13 +11,16 @@ import { test } from 'node:test'
 import fc from 'fast-check'
 import {
   EXPANDED_NOTE_CHARS,
+  LOG_ENTRY_UNITS,
+  MAX_LOG_ENTRIES,
   MAX_NOTE_CHARS,
   ONE_LINE_CHARS,
   cleanText,
   contextText,
   fencedNote,
+  logText,
   oneLine,
-  transcriptText,
+  transcriptLines,
 } from '../hooks/note.ts'
 
 const RUNS = { numRuns: 3000 }
@@ -255,11 +258,73 @@ test('the framing around the note stays first and last', () => {
   )
 })
 
-test('every transcript line of a note is marked as quoted', () => {
+const LINE_BREAKS = [cp(0x0a), cp(0x0d), cp(0x2028), cp(0x2029)]
+
+/** Asserts what Claude Code needs of each transcript entry to draw it whole, on its own row. */
+const assertDrawable = entries => {
+  assert.ok(entries.length <= MAX_LOG_ENTRIES)
+  for (const entry of entries) {
+    assert.ok(entry.startsWith('│ '))
+    assert.ok(entry.length <= LOG_ENTRY_UNITS)
+    assert.ok(entry.isWellFormed())
+    for (const lineBreak of LINE_BREAKS) assert.ok(!entry.includes(lineBreak))
+  }
+}
+
+test('every transcript entry of a note is one marked line Claude Code draws whole', () => {
   fc.assert(
-    fc.property(note, value => {
-      for (const line of transcriptText(value).split('\n')) assert.ok(line.startsWith('│ '))
+    fc.property(note, fc.constantFrom(MAX_NOTE_CHARS, EXPANDED_NOTE_CHARS), (value, max) => {
+      const entries = transcriptLines(value, max)
+      assertDrawable(entries)
+      const cleaned = cleanText(logText(value), max)
+      // Lines short enough for one entry each come back exactly as cleaned.
+      if (cleaned.split('\n').every(line => line.length <= LOG_ENTRY_UNITS - 2) && entries.length < MAX_LOG_ENTRIES) {
+        assert.equal(entries.map(entry => entry.slice(2)).join('\n'), cleaned)
+      }
     }),
     RUNS,
   )
+})
+
+// Prose lines longer than one entry: words of one to fifty characters, some
+// outside the Basic Multilingual Plane, separated by single spaces.
+const word = fc.array(fc.constantFrom('a', 'é', '日', cp(0x1d42e), cp(0x1f469, 0x200d, 0x1f4bb), '|', '"'), { minLength: 1, maxLength: 50, size: 'max' })
+  .map(chars => chars.join(''))
+const longLine = fc.array(word, { minLength: 100, maxLength: 900, size: 'max' }).map(words => words.join(' '))
+
+test('a line too long for one entry goes on in the next, broken at a space', () => {
+  fc.assert(
+    fc.property(longLine, line => {
+      const entries = transcriptLines({ line, tag: 'Heads up', isTagged: true, explanation: '' }, EXPANDED_NOTE_CHARS)
+      assert.ok(entries.length > 1)
+      assertDrawable(entries)
+      const cleaned = cleanText(`Heads up · ${line}`, EXPANDED_NOTE_CHARS)
+      assert.equal(entries.map(entry => entry.slice(2)).join(' '), cleaned)
+    }),
+    { numRuns: 300 },
+  )
+})
+
+test('a line with no space to break at is cut between characters, never inside a pair', () => {
+  for (const unit of ['x', cp(0x1d42e)]) {
+    const line = unit.repeat(5000)
+    const entries = transcriptLines({ line, tag: 'Heads up', isTagged: true, explanation: '' }, EXPANDED_NOTE_CHARS)
+    assertDrawable(entries)
+    assert.equal(entries.map(entry => entry.slice(2)).join(''), cleanText(`Heads up · ${line}`, EXPANDED_NOTE_CHARS))
+  }
+})
+
+test('a space that ends a line at an entry boundary leaves no empty entry', () => {
+  const explanation = `${'x'.repeat(LOG_ENTRY_UNITS - 2)} \nnext`
+  const entries = transcriptLines({ line: 'A note.', tag: 'Heads up', isTagged: true, explanation }, EXPANDED_NOTE_CHARS)
+  assertDrawable(entries)
+  assert.deepEqual(entries, ['│ Heads up · A note.', `│ ${'x'.repeat(LOG_ENTRY_UNITS - 2)}`, '│ next'])
+})
+
+test('a note of more lines than entries allowed ends in a marked ellipsis', () => {
+  const explanation = Array.from({ length: 300 }, (_, i) => `line ${i}`).join('\n')
+  const entries = transcriptLines({ line: 'A note.', tag: 'Heads up', isTagged: true, explanation }, EXPANDED_NOTE_CHARS)
+  assert.equal(entries.length, MAX_LOG_ENTRIES)
+  assert.equal(entries.at(-1), '│ …')
+  assert.deepEqual(entries.slice(1, 3), ['│ line 0', '│ line 1'])
 })

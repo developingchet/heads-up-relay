@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 import { expect, mock, test, type Plugin } from 'claude-code/testing'
-import { EXPANDED_NOTE_CHARS, MAX_NOTE_CHARS, contextText, shownNote } from '../hooks/note'
+import { EXPANDED_NOTE_CHARS, LOG_ENTRY_UNITS, MAX_LOG_ENTRIES, MAX_NOTE_CHARS, contextText, shownNote } from '../hooks/note'
 
 const SESSION = 'session-1'
 const LINE = 'The main agent cached prompts per turn, which can cost more for one-off questions.'
@@ -156,8 +156,22 @@ const race = (writes: readonly Write[], turnId: string) => ({
   turnId,
 })
 
-/** A note as the transcript shows it, each line marked as the note's. */
-const marked = (text: string): string => text.split('\n').map(line => `│ ${line}`).join('\n')
+/** A note as the transcript shows it: an entry per line, each marked as the note's. */
+const marked = (text: string): string[] => text.split('\n').map(line => `│ ${line}`)
+
+/**
+ * Checks that `rows` show `text` as Claude Code can draw them: each marked, on
+ * one line and short enough to be drawn whole, a line too long for one entry
+ * going on in the next after a space.
+ */
+const expectRows = (rows: readonly string[], text: string): void => {
+  for (const row of rows) {
+    expect(row.startsWith('│ ')).toBe(true)
+    expect(row.length <= LOG_ENTRY_UNITS).toBe(true)
+    expect(/[\n\r\u2028\u2029]/.test(row)).toBe(false)
+  }
+  expect(rows.map(row => row.slice(2)).join(' ')).toBe(text.replace(/\n/g, ' '))
+}
 
 /** The text of each row the relay appended. */
 const notes = (session: ReturnType<typeof mock.session>): string[] =>
@@ -237,7 +251,7 @@ test('the expanded receipt setting follows the relayed note with the note itself
   expect(notes(session)[0]).not.toContain(' …')
   expect(seen.transcript).toEqual([
     `relayed Claude a note: ${long.slice(0, 160)} …`,
-    marked(`Heads up · ${long}\n${EXPLANATION}`),
+    ...marked(`Heads up · ${long}\n${EXPLANATION}`),
   ])
   expect(seen.status).toEqual([])
 })
@@ -260,7 +274,99 @@ test('the expanded receipt setting cuts a note at 8,000 characters in the row an
   expect(whole.length).toBeGreaterThan(EXPANDED_NOTE_CHARS)
   expect(notes(session).length).toBe(1)
   expect(notes(session)[0]).toContain(`\`\`\`text\n${kept}\n\`\`\``)
-  expect(seen.transcript).toEqual([`relayed Claude a note: ${long.slice(0, 160)} …`, marked(kept)])
+  expect(seen.transcript[0]).toBe(`relayed Claude a note: ${long.slice(0, 160)} …`)
+  // The cut leaves one line of 8,002 characters, more than one entry shows.
+  expect(seen.transcript.length).toBe(6)
+  expectRows(seen.transcript.slice(1), kept)
+})
+
+const RICH_LINE = 'The "Clear Rules of Engagement" page | covers only HackerOne Clear, not ordinary programs.'
+
+/** An explanation in the shapes a reviewer writes: Markdown blocks, code, pipes, quotes, backslashes, text outside ASCII. */
+const RICH_EXPLANATION = [
+  '**Clear rules don’t cover every HackerOne program**',
+  '',
+  '* **HackerOne Clear** is a separate tier.',
+  '  * Its rules apply only there.',
+  '1. Read the program’s own policy first.',
+  '',
+  '```sh',
+  'grep -n "scope" policy.md | head',
+  '```',
+  '',
+  '| Rule | Applies |',
+  '|------|---------|',
+  'A literal \\n, a "quoted" word, C:\\path\\to and {"json": [1, "\\u00e9"]}.',
+  'café, naïve, 日本語, 𝐮, 👩‍💻, ✅ — kept.',
+].join('\n')
+
+/** The rich note as the reviewer stores it: CRLF line ends, blank lines around it. */
+const richOffer = (): Write => {
+  const write = offer(RICH_LINE, 't1')
+  const sessions = write.value as readonly { readonly view?: object }[]
+  return {
+    ...write,
+    value: sessions.map(s => (s.view === undefined ? s : {
+      ...s,
+      view: { ...s.view, explanation: `\r\n\r\n${RICH_EXPLANATION.replace(/\n/g, '\r\n')}\r\n\r\n` },
+    })),
+  }
+}
+
+test('with the expanded receipt, a multi-line note keeps every line in the row and the transcript', {
+  plugins: [reviewer()],
+  options: { receipt: 'expanded' },
+}, async ($, on) => {
+  const seen = engine(on)
+  const session = mock.session(on)
+  const clock = mock.clock(on)
+  const whole = `Heads up · ${RICH_LINE}\n${RICH_EXPLANATION}`
+
+  await $.session.start(START)
+  await $.turn.start(review([{ key: 'seen', value: [RICH_LINE] }, richOffer()], 't1'))
+  // The reviewer writing the same note again does not relay it again.
+  await $.turn.start(review([richOffer()], 't1'))
+  await clock.advance(20_000)
+
+  // The note holds a fence of three backticks, so its own is four.
+  expect(notes(session)).toEqual([expect.stringContaining(`\`\`\`\`text\n${whole}\n\`\`\`\``)])
+  expect(seen.transcript).toEqual([`relayed Claude a note: ${RICH_LINE}`, ...marked(whole)])
+  expectRows(seen.transcript.slice(1), whole)
+  expect(shownView(seen)).toBeUndefined()
+})
+
+test('by default a multi-line note keeps every line in the row and one line in the transcript', { plugins: [reviewer()] }, async ($, on) => {
+  const seen = engine(on)
+  const session = mock.session(on)
+  const clock = mock.clock(on)
+
+  await $.session.start(START)
+  await $.turn.start(review([richOffer()], 't1'))
+  await clock.advance(20_000)
+
+  expect(notes(session)).toEqual([expect.stringContaining(`\`\`\`\`text\nHeads up · ${RICH_LINE}\n${RICH_EXPLANATION}\n\`\`\`\``)])
+  expect(seen.transcript).toEqual([`relayed Claude a note: ${RICH_LINE}`])
+})
+
+test('log mode writes a note of many lines in at most 100 entries', {
+  plugins: [reviewer()],
+  options: { mode: 'log' },
+}, async ($, on) => {
+  const seen = engine(on)
+  const explanation = Array.from({ length: 150 }, (_, i) => `step ${i}`).join('\n')
+  const write = offer(LINE, 't1')
+  const sessions = write.value as readonly { readonly view?: object }[]
+
+  mock.clock(on)
+
+  await $.turn.start(review([{
+    ...write,
+    value: sessions.map(s => (s.view === undefined ? s : { ...s, view: { ...s.view, explanation } })),
+  }], 't1'))
+
+  expect(seen.transcript.length).toBe(MAX_LOG_ENTRIES)
+  expect(seen.transcript.slice(0, 3)).toEqual([`│ Heads up · ${LINE}`, '│ step 0', '│ step 1'])
+  expect(seen.transcript.at(-1)).toBe('│ …')
 })
 
 test('an unreadable receipt setting keeps the transcript to the one-line summary', {
@@ -394,7 +500,7 @@ test('log mode writes the note to the transcript, appends nothing and keeps the 
   await $.turn.start(review(shown(LINE, 't1'), 't1'))
 
   expect(session.appended()).toEqual([])
-  expect(seen.transcript).toEqual([marked(`Heads up · ${LINE}\n${EXPLANATION}`)])
+  expect(seen.transcript).toEqual(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
   expect(shownView(seen)).toEqual(expect.objectContaining({ kind: 'offer', line: LINE }))
 })
 
@@ -415,7 +521,7 @@ test('log mode cuts each note it writes at 1,500 characters', {
 
   await $.turn.start(review(shown(long, 't1'), 't1'))
 
-  expect(seen.transcript).toEqual([marked(`${whole.slice(0, MAX_NOTE_CHARS).trimEnd()} …`)])
+  expect(seen.transcript).toEqual(marked(`${whole.slice(0, MAX_NOTE_CHARS).trimEnd()} …`))
 })
 
 test('log mode with the expanded receipt setting writes each note past the 1,500-character cut', {
@@ -430,7 +536,7 @@ test('log mode with the expanded receipt setting writes each note past the 1,500
   await $.turn.start(review(shown(long, 't1'), 't1'))
 
   expect(whole.length).toBeGreaterThan(MAX_NOTE_CHARS)
-  expect(seen.transcript).toEqual([marked(whole)])
+  expect(seen.transcript).toEqual(marked(whole))
 })
 
 test('writes from other plugins are ignored', { plugins: [reviewer('some-other-mod')] }, async ($, on) => {
@@ -763,9 +869,9 @@ test('a held note that cannot be appended is shown in full in the transcript', {
   reply.finish()
   await replying
 
-  expect(seen.transcript.length).toBe(2)
+  expect(seen.transcript.length).toBe(4)
   expect(seen.transcript[0]).toContain('blocked by policy')
-  expect(seen.transcript[1]).toBe(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
+  expect(seen.transcript.slice(1)).toEqual(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
   expect(seen.status.at(-1)).toContain('notes not forwarded')
 })
 
@@ -822,7 +928,7 @@ test('a note still held when the conversation is cleared goes to the transcript,
   await replying
 
   expect(notes(session)).toEqual([])
-  expect(seen.transcript.at(-1)).toBe(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
+  expect(seen.transcript.slice(-3)).toEqual(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
   expect(seen.held.at(-1)).toEqual([])
 })
 
@@ -875,7 +981,7 @@ test('in log mode, notes an earlier load held are shown in the transcript when t
   await $.session.start(START)
 
   expect(notes(session)).toEqual([])
-  expect(seen.transcript.at(-1)).toBe(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
+  expect(seen.transcript.slice(-3)).toEqual(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
   expect(seen.held.at(-1)).toEqual([])
 })
 
@@ -890,8 +996,8 @@ test('a held note from another conversation is shown in the transcript, not appe
   await replyOf($.turn.step(step('t1')))
 
   expect(notes(session)).toEqual([])
-  expect(seen.transcript.at(-2)).toContain('it was shown in another conversation')
-  expect(seen.transcript.at(-1)).toBe(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
+  expect(seen.transcript.at(-4)).toContain('it was shown in another conversation')
+  expect(seen.transcript.slice(-3)).toEqual(marked(`Heads up · ${LINE}\n${EXPLANATION}`))
 })
 
 test('a reply that ends while its note is still being held appends it', { plugins: [reviewer()] }, async ($, on) => {
@@ -1142,14 +1248,14 @@ test('with the expanded receipt, a held note shown after a missed deadline is no
   await clock.advance(3_000)
   await replying
 
-  expect(seen.transcript.length).toBe(2)
+  expect(seen.transcript.length).toBe(4)
   expect(seen.transcript[0]).toContain('no answer within 3 s')
-  expect(seen.transcript[1]).toBe(body)
+  expect(seen.transcript.slice(1)).toEqual(body)
 
   appends.release()
   for (let i = 0; i < 100 && !seen.transcript.some(line => line.includes('after all')); i++) await Promise.resolve()
 
-  expect(seen.transcript.slice(2)).toEqual([`relayed Claude a note after all: ${LINE}`])
+  expect(seen.transcript.slice(4)).toEqual([`relayed Claude a note after all: ${LINE}`])
 })
 
 test('with the expanded receipt, an append stored after its deadline is followed by the note', {
@@ -1167,9 +1273,9 @@ test('with the expanded receipt, an append stored after its deadline is followed
   appends.release()
   for (let i = 0; i < 100 && !seen.transcript.some(line => line.includes('after all')); i++) await Promise.resolve()
 
-  expect(seen.transcript.slice(-2)).toEqual([
+  expect(seen.transcript.slice(-4)).toEqual([
     `relayed Claude a note after all: ${LINE}`,
-    marked(`Heads up · ${LINE}\n${EXPLANATION}`),
+    ...marked(`Heads up · ${LINE}\n${EXPLANATION}`),
   ])
 })
 
@@ -1198,9 +1304,9 @@ test('reviewer text in warnings and log mode is cleaned to one safe line', {
   await $.turn.start(review([noTurn], 't1'))
   await $.turn.start(review([offer(hostile, 't2', SESSION, 'Heads up', 2)], 't2'))
 
-  expect(seen.transcript.length).toBe(2)
+  expect(seen.transcript.length).toBe(5)
   expect(seen.transcript[0]).toContain('"Bad[31m red second line"')
-  expect(seen.transcript[1]).toBe(marked(`Heads up · Bad[31m red\nsecond line\n${EXPLANATION}`))
+  expect(seen.transcript.slice(1)).toEqual(marked(`Heads up · Bad[31m red\nsecond line\n${EXPLANATION}`))
   for (const line of seen.transcript) expect(/[\u001b\u202E]/.test(line)).toBe(false)
 })
 
