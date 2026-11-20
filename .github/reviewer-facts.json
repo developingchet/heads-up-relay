@@ -1,5 +1,5 @@
 {
-  "release": "2.1.325",
+  "release": "2.1.329",
   "facts": {
     "reviewerName": true,
     "offerCount": 1,
@@ -53,6 +53,7 @@
       "telemetry.log",
       "telemetry.mark",
       "ui.invalidate",
+      "ui.log",
       "ui.resolve",
       "ui.toast"
     ],
@@ -79,11 +80,15 @@
       "file",
       "key",
       "language",
+      "list",
+      "log",
       "name",
+      "person",
       "plist",
       "properties",
       "reason",
       "reasoning",
+      "record",
       "role",
       "row",
       "scope",
