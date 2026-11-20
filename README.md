@@ -270,7 +270,10 @@ same cleaning, on one line. With `receipt: expanded` the note itself follows tha
 included, each line marked `│ `; a note the transcript shows instead of a one-line receipt (in `log` mode, or
 when a held note cannot be appended) is marked the same way, so no line of it can pass for one the relay
 wrote. Each of these is cut as the main agent's copy is: at 1,500 characters, or 8,000 with
-`receipt: expanded`.
+`receipt: expanded`. Claude Code draws each transcript entry from a plugin as one row, with every line break
+in it shown as `�`, and draws at most 2,000 characters of it, so the relay writes a note one entry per line,
+a line longer than that going on in the next entry. A note of more than 100 lines stops at the 100th entry,
+which reads `│ …`; the main agent's copy keeps them all.
 
 Every note the reviewer shows in this session is passed on, Heads up and You should know alike, once each. A
 note is skipped when it belongs to another session, or was shown before the relay loaded or before the

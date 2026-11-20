@@ -9,7 +9,7 @@ import {
   noteKey,
   oneLine,
   shownNote,
-  transcriptText,
+  transcriptLines,
   withoutView,
 } from './note'
 
@@ -190,6 +190,14 @@ function sessionIdOf($: Engine, relay: Relay): Promise<string> {
 const noteMax = (relay: Relay): number =>
   relay.receipt === 'expanded' ? EXPANDED_NOTE_CHARS : MAX_NOTE_CHARS
 
+/**
+ * Writes the note itself to the transcript, one entry per line: Claude Code
+ * shows each entry as one row, so a line break inside one would not show.
+ */
+function logNote($: Engine, relay: Relay, note: ReviewerNote): void {
+  for (const line of transcriptLines(note, noteMax(relay))) $.ui.log(line)
+}
+
 type ReceiptOptions = {
   /** True for an append stored after its deadline. */
   readonly isLate?: boolean
@@ -206,7 +214,7 @@ function receipt($: Engine, relay: Relay, note: ReviewerNote, uuid: string, { is
   try {
     debug($, `forwarded a ${oneLine(note.tag)} note about turn ${oneLine(note.reviewedTurn ?? '')} as row ${uuid}`)
     $.ui.log(`relayed Claude a note${isLate ? ' after all' : ''}: ${oneLine(note.line)}`)
-    if (relay.receipt === 'expanded' && !isNoteShown) $.ui.log(transcriptText(note, noteMax(relay)))
+    if (relay.receipt === 'expanded' && !isNoteShown) logNote($, relay, note)
     delivered($, relay)
   } catch (error) {
     debug($, `reporting a forwarded note failed: ${reasonOf(error)}`)
@@ -340,7 +348,7 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
   }
 
   if (relay.mode === 'log') {
-    $.ui.log(transcriptText(note, noteMax(relay)))
+    logNote($, relay, note)
     delivered($, relay)
     return false
   }
@@ -377,7 +385,7 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
 function showInstead($: Engine, relay: Relay, note: ReviewerNote, reason: string): void {
   warn($, relay, 'held-not-sent', `a note held until Claude's reply ended was not added to the conversation (${reason}); it is shown here instead.`, { isPerNote: true })
   try {
-    $.ui.log(transcriptText(note, noteMax(relay)))
+    logNote($, relay, note)
   } catch (error) {
     debug($, `showing a held note failed: ${reasonOf(error)}`)
   }
