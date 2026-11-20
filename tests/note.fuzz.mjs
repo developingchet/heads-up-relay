@@ -69,7 +69,7 @@ const LINE_BREAK = new RegExp(`[\\n\\r${cp(0x2028)}${cp(0x2029)}]`)
 const PROTECTED_NAMES = [
   'system-reminder', 'system_prompt', 'system', 'user', 'human', 'assistant', 'function_calls', 'invoke',
   'parameter', 'task-notification', 'local-command-stdout', 'tool_result', 'antml:invoke', 'channel',
-  'claude_md', 'cross-session-message', 'env', 'memory', 'stdout', 'function',
+  'claude_md', 'cross-session-message', 'env', 'memory', 'stdout', 'function', 'terminal',
 ]
 
 // What hides nothing in a tag: the note is read in NFKC form, so compatibility

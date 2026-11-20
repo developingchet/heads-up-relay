@@ -63,15 +63,16 @@ suggestions](https://code.claude.com/docs/en/interactive-mode#you-should-know-su
 
 - **It is available to your organization.** That is decided on Anthropic's side, not by a setting you can
   change, and many accounts do not have it. It is not offered through an LLM gateway, a Claude apps gateway
-  or an `apiKeyHelper` key. In 2.1.325 it is also never offered under some compliance configurations, HIPAA
-  and zero data retention among them; this check is undocumented.
+  or an `apiKeyHelper` key. In 2.1.329 it is also never offered under some compliance configurations, HIPAA
+  and data-retention ones such as zero data retention among them, nor before that check has settled; the
+  check is undocumented.
 - **The session has its feature flags.** A session that does not fetch them (with `DISABLE_TELEMETRY` set,
   for example) does not get the reviewer, and neither does the [first session after an install or
   upgrade](https://code.claude.com/docs/en/env-vars#first-session-after-an-install-or-upgrade), whose flags
   have not arrived yet. Start a new session to try again.
 - **It is turned on.** It ships off. Run `/plugin enable cc-plugin-you-should-know@builtin`, or set
   `"cc-plugin-you-should-know@builtin": true` under `enabledPlugins` in your settings.
-- **The session is interactive.** In 2.1.325 the reviewer only reviews while a terminal or other surface is
+- **The session is interactive.** In 2.1.329 the reviewer only reviews while a terminal or other surface is
   attached, so `claude -p` runs get no notes.
 
 To check a session, look for the reviewer in `/plugin`, which lists it only where it is available. A session
@@ -81,7 +82,7 @@ log](https://code.claude.com/docs/en/plugins/mods/troubleshoot#read-the-debug-lo
 note the reviewer shows also appears on its band above the prompt, or, with the relay installed, as a
 `heads-up-relay: relayed Claude a note` line in the transcript.
 
-The reviewer itself checks a turn only now and then (in 2.1.325, at its 7th model request and every sixth one
+The reviewer itself checks a turn only now and then (in 2.1.329, at its 7th model request and every sixth one
 after), skips notes it has already shown or that you marked as known, and backs off when its notes are
 ignored, so even where it runs, notes are occasional.
 
@@ -209,7 +210,7 @@ in a session picks up the change.
 
 ## Compatibility
 
-Checked on Claude Code 2.1.325, which has hooks modules. The relay reads the reviewer's private storage,
+Checked on Claude Code 2.1.329, which has hooks modules. The relay reads the reviewer's private storage,
 which is not a published interface, so a later release can break it; see
 [How it reads the notes](#how-it-reads-the-notes) for the warnings it gives when that happens, and
 [Release checks](#release-checks) for how each new release is checked here.
@@ -243,10 +244,11 @@ same text the main agent read, before that copy was fenced and its envelope-like
 (or a fullwidth or small one) of a tag named like a conversation envelope, role, tool call or harness block
 becomes `&lt;`, whatever spaces, slashes, joiners or variation selectors stand between it and the name, so
 the note could not open or close one even if a later release wrapped appended rows. That is any name, in any
-case, with a `-`, `_` or `:` after its first letter (`system-reminder`, `function_calls`, `claude_md`, `antml:invoke`), and a list of single words such as
-`system`, `user`, `assistant`, `document`, `invoke`, `function`, `parameter`, `result`, `stdout`, `channel`,
-`env` and `memory`. The name is read in its NFKC form, so one spelled in fullwidth, mathematical or other
-compatibility letters counts as the name it reads as. Other tags, such as `<T>`, `<div>` or `<systemd>`, are
+case, with a `-`, `_` or `:` after its first letter (`system-reminder`, `function_calls`, `claude_md`,
+`antml:invoke`), and a list of single words such as `system`, `user`, `assistant`, `document`, `invoke`,
+`function`, `parameter`, `result`, `stdout`, `channel`, `env`, `memory` and `terminal`. The name is read in
+its NFKC form, so one spelled in fullwidth, mathematical or other compatibility letters counts as the name it
+reads as. Other tags, such as `<T>`, `<div>` or `<systemd>`, are
 kept as written. The rule looks only at what follows a `<`, so some ordinary code is rewritten too:
 `count < max_count`, `Array<Message>` and `std::vector<std::string>` reach the main agent as
 `count &lt; max_count`, `Array&lt;Message>` and `std::vector&lt;std::string>`. The framing adds about 400
@@ -293,10 +295,11 @@ The reviewer's `sessions` writes are stored in the order it made them: one held 
 writes after it waiting, so it cannot land over a newer one. Its reads of `sessions` wait for those writes
 too, so it never builds a write from a value one of them is about to replace.
 
-Claude Code 2.1.325 also has an undocumented switch, `CLAUDE_CODE_YOU_SHOULD_KNOW_AUTO_SEND`, that attaches
-the note on the band to the person's next typed prompt in the terminal, as context after the prompt. It reads the same stored `view`,
-so a note the relay forwarded is never sent twice, and a note the relay could not forward is still sent with
-the next prompt when the switch is on.
+Claude Code 2.1.329 also has an undocumented switch, `CLAUDE_CODE_YOU_SHOULD_KNOW_AUTO_SEND`, that attaches
+the note on the band to the person's next typed prompt in the terminal, as context after the prompt, and
+writes `Sent a note to Claude with your prompt` to the transcript when it does. It reads the same stored
+`view`, so a note the relay forwarded is never sent twice, and a note the relay could not forward is still
+sent with the next prompt when the switch is on.
 
 ## Options
 
@@ -313,7 +316,7 @@ in user or managed settings. An installed copy is keyed by the plugin and its ma
 { "pluginConfigs": { "heads-up-relay@heads-up-relay": { "options": { "mode": "log" } } } }
 ```
 
-Loaded with `--plugin-dir`, the key is `heads-up-relay@inline` (2.1.325 also reads the bare `heads-up-relay`).
+Loaded with `--plugin-dir`, the key is `heads-up-relay@inline` (2.1.329 also reads the bare `heads-up-relay`).
 
 ## Nothing arrives
 
@@ -370,7 +373,7 @@ The reviewer gets its notes from `$.model.fork`. Reading them there instead woul
 output format and redoing its checks, so the relay reads the stored offer, which is written only after those
 checks pass.
 
-That layout is private to the reviewer and was read from Claude Code 2.1.325. It can change in any release,
+That layout is private to the reviewer and was read from Claude Code 2.1.329. It can change in any release,
 so the relay watches for it:
 
 - a note added to `seen` with no readable offer within 10 seconds, an offer missing its reviewed turn, an
@@ -408,7 +411,7 @@ relay with the same origin a session gives them, and read the appended rows back
 or later after `npm ci --prefix tests`; the release checks below have their own tests beside them:
 `node --test tests/note.fuzz.mjs tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs`.
 
-Because the stand-in matches the reviewer's layout as of 2.1.325, the tests keep passing if a later release
+Because the stand-in matches the reviewer's layout as of 2.1.329, the tests keep passing if a later release
 changes it; the release checks cover that.
 
 ### Release checks

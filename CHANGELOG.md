@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.0.6 - 2026-11-20
+
+- Checked against Claude Code 2.1.329, which CI now runs and the release baseline is read from.
+- Escapes `<terminal …>` and `</terminal>`. 2.1.329 reads a user message wrapped in
+  `<terminal name="…">` as a terminal selection the person attached; a note could not make its whole row
+  read that way, since the row starts with the relay's framing, but it could open or close one inside the
+  fence.
+- With `CLAUDE_CODE_YOU_SHOULD_KNOW_AUTO_SEND` on, the reviewer now writes `Sent a note to Claude with your
+  prompt` to the transcript when it sends the note on the band with the person's prompt. The relay takes a
+  forwarded note off the band, so that line appears only for a note the relay did not forward.
+- The README says the reviewer is not offered under data-retention configurations beyond zero data
+  retention either, nor before its compliance check settles.
+- The closing tags `list`, `log`, `person` and `record` that 2.1.328 added belong to a side model's prompt
+  built from the person's own messages, which leaves out appended rows such as the relay's and escapes
+  those tags itself, so they stay unescaped here and join the baseline.
+
 ## 0.0.5 - 2026-11-20
 
 - `receipt: expanded` cuts each note at 8,000 characters instead of not at all. Without a cut, one long note

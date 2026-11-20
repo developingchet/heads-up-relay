@@ -124,8 +124,8 @@ const HARNESS_WORDS = [
   'diagnostics', 'document', 'env', 'error', 'event', 'examples?', 'functions?', 'hooks?', 'human', 'ide',
   'instructions', 'invoke', 'local', 'memory', 'messages?', 'note', 'output', 'parameters?', 'persisted',
   'profile', 'prompt', 'recovery', 'relay', 'reminder', 'results?', 'session', 'skills?', 'status', 'stderr',
-  'stdout', 'subagent', 'summary', 'system', 'task', 'teammate', 'thinking', 'tools?', 'transcript', 'user',
-  'wake',
+  'stdout', 'subagent', 'summary', 'system', 'task', 'teammate', 'terminal', 'thinking', 'tools?', 'transcript',
+  'user', 'wake',
 ]
 
 // The escape rule, in one place: a tag is escaped when its name, in any case,

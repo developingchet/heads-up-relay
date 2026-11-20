@@ -1338,7 +1338,8 @@ test('the tags Claude Code wraps conversation text in are escaped', {}, async ()
     'channel', 'cross-session-message', 'new-diagnostics', 'mcp-resource', 'non-user-message', 'previous-conversation',
     'interrupted-output', 'truncated-output', 'partial-response', 'repl-output', 'webhook-payload', 'coordinator-task',
     'guidance-loaded', 'memory', 'claude_md', 'agents', 'skills', 'transcript', 'conversation', 'env', 'wake', 'event',
-    'relay', 'note', 'cited', 'profile', 'recovery', 'diagnostics', 'status', 'session',
+    'relay', 'note', 'cited', 'profile', 'recovery', 'diagnostics', 'status', 'session', 'terminal',
+    'ide_selection',
   ]
   for (const name of names) {
     expect(fenced(`<${name} source="x"> and </${name}>`).body).toBe(`Heads up · &lt;${name} source="x"> and &lt;/${name}>`)
