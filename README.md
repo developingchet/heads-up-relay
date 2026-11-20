@@ -407,9 +407,9 @@ those pinned to an earlier tag ([Install a release](#install-a-release)).
 
 The tests load a stand-in plugin under the reviewer's name at the built-in tier, so its writes reach the
 relay with the same origin a session gives them, and read the appended rows back from the test kit's session.
-`tests/note.fuzz.mjs` adds property-based tests of the note's cleaning, fence and escaping, run with Node 24
+`tests/note.fuzz.js` adds property-based tests of the note's cleaning, fence and escaping, run with Node 24
 or later after `npm ci --prefix tests`; the release checks below have their own tests beside them:
-`node --test tests/note.fuzz.mjs tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs`.
+`node --test tests/note.fuzz.js tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs`.
 
 Because the stand-in matches the reviewer's layout as of 2.1.329, the tests keep passing if a later release
 changes it; the release checks cover that.

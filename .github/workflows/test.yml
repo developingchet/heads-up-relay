@@ -59,4 +59,4 @@ jobs:
         with:
           node-version: 24
       - run: npm ci --prefix tests --no-audit --no-fund
-      - run: node --test tests/note.fuzz.mjs tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs
+      - run: node --test tests/note.fuzz.js tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs

@@ -19,7 +19,7 @@ opening an issue.
 
    ```sh
    npm ci --prefix tests
-   node --test tests/note.fuzz.mjs tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs
+   node --test tests/note.fuzz.js tests/reviewer-facts.test.mjs tests/upstream-check.test.mjs
    ```
 
 4. A change to how notes are read, held or appended also needs a check in a live session where the You should
