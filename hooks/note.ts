@@ -16,11 +16,13 @@ const DEFAULT_TAG = 'You should know'
 export const MAX_NOTE_CHARS = 1500
 
 /**
- * The whole note, with no length cut. The expanded receipt sends this much to
- * the main agent and shows the same text in the transcript, so what the person
- * sees relayed is what the model reads.
+ * Longest note under the expanded receipt, which sends this much to the main
+ * agent and shows the same text in the transcript, so what the person sees
+ * relayed is what the model reads. It is far above any note the reviewer
+ * writes, and still bounds what one note can add to every later request and
+ * what cleaning it costs.
  */
-export const FULL_NOTE_CHARS = Number.POSITIVE_INFINITY
+export const EXPANDED_NOTE_CHARS = 8000
 
 /** Longest note quoted on one line, in a receipt or a warning. */
 export const ONE_LINE_CHARS = 160
@@ -101,11 +103,16 @@ export const logText = (note: ReviewerNote): string =>
 // Persian or Indic scripts and emoji sequences need them.
 const INVISIBLE = /(?![\u200C\u200D\uFE0E\uFE0F])[\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}\p{Cs}\uFFFE\uFFFF]/gu
 
-// A joiner or variation selector after ASCII, after a fullwidth or small `<`,
-// or at the start, joins nothing a word or emoji needs, and would hide a tag
-// (`<`, a joiner, `system-reminder>`) from escapeTags. A keycap (a digit, its
-// selector and U+20E3) keeps its selector.
-const STRAY_JOINER = /(?<=(?:^|[\x00-\x7F\uFF1C\uFE64])[\u200C\u200D\uFE0E\uFE0F]*)[\u200C\u200D\uFE0E\uFE0F](?!\u20E3)/gu
+// A run of joiners and variation selectors after ASCII, after a fullwidth or
+// small `<`, or at the start, joins nothing a word or emoji needs, and would
+// hide a tag (`<`, a joiner, `system-reminder>`) from escapeTags. A keycap (a
+// digit, its selector and U+20E3) keeps its selector: only the last of a run
+// can stand before U+20E3. The run is matched whole, from the character before
+// it, so the pass stays linear however long the run.
+const STRAY_JOINERS = /(^|[\x00-\x7F\uFF1C\uFE64])([\u200C\u200D\uFE0E\uFE0F]+)(\u20E3?)/gu
+
+const keptOfRun = (_: string, before: string, run: string, keycap: string): string =>
+  keycap === '' ? before : `${before}${run.slice(-1)}${keycap}`
 
 // Tag names that wrap or mark text in a conversation and are single words:
 // roles, tool calls and the blocks Claude Code's harness adds. A name with
@@ -211,7 +218,7 @@ export const cleanText = (text: string, max = MAX_NOTE_CHARS): string => {
     .slice(0, readLimit(max))
     .replace(/\r\n?|[\u2028\u2029]/g, '\n')
     .replace(INVISIBLE, char => (char === '\n' || char === '\t' ? char : ''))
-    .replace(STRAY_JOINER, '')
+    .replace(STRAY_JOINERS, keptOfRun)
     .replace(/\n{3,}/g, '\n\n')
   return cut(plain, max)
 }
@@ -222,8 +229,8 @@ export const oneLine = (text: string, max = ONE_LINE_CHARS): string =>
 
 /**
  * The note as transcript lines, each marked so a line in the note cannot pass
- * for one the relay wrote. The expanded receipt passes `FULL_NOTE_CHARS`, so
- * the lines carry the note whole.
+ * for one the relay wrote. The expanded receipt passes `EXPANDED_NOTE_CHARS`,
+ * the cut the main agent's copy gets too.
  */
 export const transcriptText = (note: ReviewerNote, max = MAX_NOTE_CHARS): string =>
   cleanText(logText(note), max)
@@ -233,7 +240,7 @@ export const transcriptText = (note: ReviewerNote, max = MAX_NOTE_CHARS): string
 
 /** A backtick fence longer than any run of backticks in `text`, so it cannot close early. */
 const fenceFor = (text: string): string => {
-  const longest = Math.max(0, ...(text.match(/`+/g) ?? []).map(run => run.length))
+  const longest = (text.match(/`+/g) ?? []).reduce((most, run) => Math.max(most, run.length), 0)
   return '`'.repeat(Math.max(3, longest + 1))
 }
 

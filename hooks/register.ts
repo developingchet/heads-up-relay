@@ -1,7 +1,7 @@
 import type { EngineInterface as Engine, Next, Origin, Register, Timer } from 'claude-code'
 import type { HeldNote, ReviewerNote } from '../types'
 import {
-  FULL_NOTE_CHARS,
+  EXPANDED_NOTE_CHARS,
   MAX_NOTE_CHARS,
   REVIEWER,
   contextText,
@@ -183,23 +183,30 @@ function sessionIdOf($: Engine, relay: Relay): Promise<string> {
 }
 
 /**
- * The most characters of one note this receipt setting passes on: the expanded
- * setting sends and shows the whole note, so the transcript carries exactly
- * what the main agent read.
+ * The most characters of one note the relay passes on, to the main agent or
+ * the transcript, in either mode: the expanded setting raises the cut for all
+ * of them alike, so the transcript carries exactly what the main agent read.
  */
 const noteMax = (relay: Relay): number =>
-  relay.receipt === 'expanded' ? FULL_NOTE_CHARS : MAX_NOTE_CHARS
+  relay.receipt === 'expanded' ? EXPANDED_NOTE_CHARS : MAX_NOTE_CHARS
+
+type ReceiptOptions = {
+  /** True for an append stored after its deadline. */
+  readonly isLate?: boolean
+  /** True when the transcript already shows the note itself, so it is not repeated. */
+  readonly isNoteShown?: boolean
+}
 
 /**
  * Puts one transcript line where the person sees what the main agent was
  * given, and clears the status line. In the expanded setting the note itself
- * follows, marked line for line and whole, as it reached the main agent.
+ * follows, marked line for line, as it reached the main agent.
  */
-function receipt($: Engine, relay: Relay, note: ReviewerNote, uuid: string, isLate = false): void {
+function receipt($: Engine, relay: Relay, note: ReviewerNote, uuid: string, { isLate = false, isNoteShown = false }: ReceiptOptions = {}): void {
   try {
     debug($, `forwarded a ${oneLine(note.tag)} note about turn ${oneLine(note.reviewedTurn ?? '')} as row ${uuid}`)
     $.ui.log(`relayed Claude a note${isLate ? ' after all' : ''}: ${oneLine(note.line)}`)
-    if (relay.receipt === 'expanded') $.ui.log(transcriptText(note, noteMax(relay)))
+    if (relay.receipt === 'expanded' && !isNoteShown) $.ui.log(transcriptText(note, noteMax(relay)))
     delivered($, relay)
   } catch (error) {
     debug($, `reporting a forwarded note failed: ${reasonOf(error)}`)
@@ -333,7 +340,7 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
   }
 
   if (relay.mode === 'log') {
-    $.ui.log(transcriptText(note))
+    $.ui.log(transcriptText(note, noteMax(relay)))
     delivered($, relay)
     return false
   }
@@ -352,7 +359,7 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
   // write of the note takes it off the band.
   const appended = await append($, relay, note, uuid => {
     relay.handled.set(key, Promise.resolve(true))
-    receipt($, relay, note, uuid, true)
+    receipt($, relay, note, uuid, { isLate: true })
   })
   if ('refusal' in appended) {
     warn($, relay, 'append-refused', `a note could not be added to the conversation (${appended.refusal}); the reviewer still shows it.`, { isPerNote: true })
@@ -363,9 +370,9 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
 }
 
 /**
- * Writes a held note in full to the transcript: it is off the band already,
- * so this is where the person still sees it. The expanded setting writes it
- * whole, as it does for a note that reached the main agent.
+ * Writes a held note itself to the transcript: it is off the band already,
+ * so this is where the person still sees it. It is cut as a note that reached
+ * the main agent would be, at 8,000 characters with the expanded setting.
  */
 function showInstead($: Engine, relay: Relay, note: ReviewerNote, reason: string): void {
   warn($, relay, 'held-not-sent', `a note held until Claude's reply ended was not added to the conversation (${reason}); it is shown here instead.`, { isPerNote: true })
@@ -394,11 +401,13 @@ async function flush($: Engine, relay: Relay): Promise<void> {
   }
   if (notes.length === 0) return
 
+  // A held note that misses the deadline is written out by showInstead, so
+  // its late receipt names it without writing it out again.
   const limit = deadline($)
   const pending = notes.map(note => ({ note, row: appendRow($, note, noteMax(relay)) }))
   const outcomes = await Promise.all(pending.map(async ({ note, row }) => ({
     note,
-    appended: await settle(row, limit.elapsed, uuid => receipt($, relay, note, uuid, true)),
+    appended: await settle(row, limit.elapsed, uuid => receipt($, relay, note, uuid, { isLate: true, isNoteShown: true })),
   })))
   limit.cancel()
 
