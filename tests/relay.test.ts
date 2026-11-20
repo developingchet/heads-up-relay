@@ -217,6 +217,47 @@ test('by default a shown note is added to the main conversation once, as a hidde
   expect(seen.transcript).toEqual([`relayed Claude a note: ${LINE}`])
 })
 
+test('the expanded receipt setting follows the relayed note with the note in full, uncapped', {
+  plugins: [reviewer()],
+  options: { receipt: 'expanded' },
+}, async ($, on) => {
+  const seen = engine(on)
+  const session = mock.session(on)
+  const clock = mock.clock(on)
+  const long = `${LINE} ${'The main agent reread the same unchanged file. '.repeat(40)}`.trimEnd()
+
+  await $.session.start(START)
+  await $.turn.start(review(shown(long, 't1'), 't1'))
+  await clock.advance(20_000)
+
+  expect(notes(session).length).toBe(1)
+  // The appended row and the transcript carry the same whole note, cut nowhere.
+  expect(notes(session)[0]).toContain(`\`\`\`text\nHeads up · ${long}\n${EXPLANATION}\n\`\`\``)
+  expect(notes(session)[0]).not.toContain(' …')
+  expect(seen.transcript).toEqual([
+    `relayed Claude a note: ${long.slice(0, 160)} …`,
+    marked(`Heads up · ${long}\n${EXPLANATION}`),
+  ])
+  expect(seen.status).toEqual([])
+})
+
+test('an unreadable receipt setting keeps the transcript to the one-line summary', {
+  plugins: [reviewer()],
+  options: { receipt: 'in full, please' },
+}, async ($, on) => {
+  const seen = engine(on)
+  const session = mock.session(on)
+  const clock = mock.clock(on)
+
+  await $.session.start(START)
+  await $.turn.start(review(shown(LINE, 't1'), 't1'))
+  await clock.advance(20_000)
+
+  expect(notes(session).length).toBe(1)
+  expect(seen.transcript).toEqual([`relayed Claude a note: ${LINE}`])
+  expect(seen.status).toEqual([])
+})
+
 test('a forwarded note is taken off the band before it is stored, and stays off on rewrites', { plugins: [reviewer()] }, async ($, on) => {
   const seen = engine(on)
   const session = mock.session(on)
