@@ -246,8 +246,9 @@ becomes `&lt;`, whatever spaces, slashes, joiners or variation selectors stand b
 the note could not open or close one even if a later release wrapped appended rows. That is any name, in any
 case, with a `-`, `_` or `:` after its first letter (`system-reminder`, `function_calls`, `claude_md`,
 `antml:invoke`), and a list of single words such as `system`, `user`, `assistant`, `document`, `invoke`,
-`function`, `parameter`, `result`, `stdout`, `channel`, `env`, `memory` and `terminal`. The name is read in its NFKC form, so one spelled in fullwidth, mathematical or other
-compatibility letters counts as the name it reads as. Other tags, such as `<T>`, `<div>` or `<systemd>`, are
+`function`, `parameter`, `result`, `stdout`, `channel`, `env`, `memory` and `terminal`. The name is read in
+its NFKC form, so one spelled in fullwidth, mathematical or other compatibility letters counts as the name it
+reads as. Other tags, such as `<T>`, `<div>` or `<systemd>`, are
 kept as written. The rule looks only at what follows a `<`, so some ordinary code is rewritten too:
 `count < max_count`, `Array<Message>` and `std::vector<std::string>` reach the main agent as
 `count &lt; max_count`, `Array&lt;Message>` and `std::vector&lt;std::string>`. The framing adds about 400
