@@ -314,6 +314,13 @@ test('a line with no space to break at is cut between characters, never inside a
   }
 })
 
+test('a space that ends a line at an entry boundary leaves no empty entry', () => {
+  const explanation = `${'x'.repeat(LOG_ENTRY_UNITS - 2)} \nnext`
+  const entries = transcriptLines({ line: 'A note.', tag: 'Heads up', isTagged: true, explanation }, EXPANDED_NOTE_CHARS)
+  assertDrawable(entries)
+  assert.deepEqual(entries, ['│ Heads up · A note.', `│ ${'x'.repeat(LOG_ENTRY_UNITS - 2)}`, '│ next'])
+})
+
 test('a note of more lines than entries allowed ends in a marked ellipsis', () => {
   const explanation = Array.from({ length: 300 }, (_, i) => `line ${i}`).join('\n')
   const entries = transcriptLines({ line: 'A note.', tag: 'Heads up', isTagged: true, explanation }, EXPANDED_NOTE_CHARS)

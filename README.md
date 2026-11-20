@@ -240,7 +240,8 @@ and U+FFFF are dropped, keeping the joiners and variation selectors that words a
 ASCII is dropped too, since it joins nothing there and could hide a tag); runs of blank lines are collapsed;
 and the tag, note and explanation together are cut to 1,500 characters on a character boundary, ending in
 ` …`, or to 8,000 with `receipt: expanded`. The same cut applies to the transcript's copy, so it shows the
-same text the main agent read, before that copy was fenced and its envelope-like tags escaped. Then the `<`
+same text the main agent read, before that copy was fenced and its envelope-like tags escaped, laid out
+one transcript entry per line as described below. Then the `<`
 (or a fullwidth or small one) of a tag named like a conversation envelope, role, tool call or harness block
 becomes `&lt;`, whatever spaces, slashes, joiners or variation selectors stand between it and the name, so
 the note could not open or close one even if a later release wrapped appended rows. That is any name, in any
@@ -271,9 +272,11 @@ included, each line marked `│ `; a note the transcript shows instead of a one-
 when a held note cannot be appended) is marked the same way, so no line of it can pass for one the relay
 wrote. Each of these is cut as the main agent's copy is: at 1,500 characters, or 8,000 with
 `receipt: expanded`. Claude Code draws each transcript entry from a plugin as one row, with every line break
-in it shown as `�`, and draws at most 2,000 characters of it, so the relay writes a note one entry per line,
-a line longer than that going on in the next entry. A note of more than 100 lines stops at the 100th entry,
-which reads `│ …`; the main agent's copy keeps them all.
+in it shown as `�`, and draws at most 2,000 UTF-16 code units of it (fewer characters when they lie outside
+the Basic Multilingual Plane), so the relay writes a note one entry per line. A line longer than that goes on
+in the next entry, broken at a space in the entry's second half where there is one and between characters
+otherwise. A note that would take more than 100 entries stops at the 100th, which reads `│ …`; the main
+agent's copy keeps all of it.
 
 Every note the reviewer shows in this session is passed on, Heads up and You should know alike, once each. A
 note is skipped when it belongs to another session, or was shown before the relay loaded or before the
@@ -309,7 +312,7 @@ sent with the next prompt when the switch is on.
 | Option | Values | Default |
 | ------ | ------ | ------- |
 | `mode` | `append`: add notes to the main conversation and take them off the band. `log`: write notes to the transcript only, which the model does not read; the band is kept. `off`: register no hooks. | `append` |
-| `receipt` | `summary`: one line in the transcript naming each note relayed. `expanded`: that line followed by the note, explanation included, each line marked `│ `, and every note cut at 8,000 characters instead of 1,500 — the appended row the model reads, the transcript copy after it, a note shown in the transcript because it could not be appended, and each note `log` mode writes — so the transcript carries the same text the model read, before the model's copy is fenced and its envelope-like tags escaped. The model reads the longer note too, and it stays in the conversation for every later request. An unreadable value falls back to `summary`. | `summary` |
+| `receipt` | `summary`: one line in the transcript naming each note relayed. `expanded`: that line followed by the note, explanation included, each line marked `│ `, and every note cut at 8,000 characters instead of 1,500 — the appended row the model reads, the transcript copy after it, a note shown in the transcript because it could not be appended, and each note `log` mode writes — so the transcript carries the same text the model read, before the model's copy is fenced and its envelope-like tags escaped, one entry per line and at most 100 entries. The model reads the longer note too, and it stays in the conversation for every later request. An unreadable value falls back to `summary`. | `summary` |
 
 Set it with `/config`, or under
 [`pluginConfigs`](https://code.claude.com/docs/en/plugins/mods/reference#settings-and-environment-variables)

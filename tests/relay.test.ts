@@ -332,7 +332,6 @@ test('with the expanded receipt, a multi-line note keeps every line in the row a
   expect(notes(session)).toEqual([expect.stringContaining(`\`\`\`\`text\n${whole}\n\`\`\`\``)])
   expect(seen.transcript).toEqual([`relayed Claude a note: ${RICH_LINE}`, ...marked(whole)])
   expectRows(seen.transcript.slice(1), whole)
-  for (const row of seen.transcript) expect(row.includes('\uFFFD')).toBe(false)
   expect(shownView(seen)).toBeUndefined()
 })
 

@@ -249,7 +249,7 @@ const isHighSurrogate = (unit: number): boolean => unit >= 0xd800 && unit <= 0xd
 /**
  * `line` in pieces of at most `max` code units, never splitting a surrogate
  * pair. A piece ends at the last space in its second half where there is one,
- * and that space is dropped.
+ * and that space is dropped; a space that ends the line leaves no empty piece.
  */
 const pieces = (line: string, max: number): string[] => {
   if (line.length <= max) return [line]
@@ -258,14 +258,14 @@ const pieces = (line: string, max: number): string[] => {
   const [head, rest] = space > end / 2
     ? [line.slice(0, space), line.slice(space + 1)]
     : [line.slice(0, end), line.slice(end)]
-  return [head, ...pieces(rest, max)]
+  return rest === '' ? [head] : [head, ...pieces(rest, max)]
 }
 
 /**
  * The note as transcript entries, one per line, each marked so a line in the
  * note cannot pass for one the relay wrote. A line too long for one entry
- * goes on in the next, and a note of more than MAX_LOG_ENTRIES lines ends in
- * a marked `…`. The expanded receipt passes `EXPANDED_NOTE_CHARS`, the cut
+ * goes on in the next, and a note that would take more than MAX_LOG_ENTRIES
+ * entries ends in a marked `…`. The expanded receipt passes `EXPANDED_NOTE_CHARS`, the cut
  * the main agent's copy gets too.
  */
 export const transcriptLines = (note: ReviewerNote, max = MAX_NOTE_CHARS): string[] => {
