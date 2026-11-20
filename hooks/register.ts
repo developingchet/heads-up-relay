@@ -193,7 +193,7 @@ const noteMax = (relay: Relay): number =>
 type ReceiptOptions = {
   /** True for an append stored after its deadline. */
   readonly isLate?: boolean
-  /** True when the transcript already shows the note in full, so it is not repeated. */
+  /** True when the transcript already shows the note itself, so it is not repeated. */
   readonly isNoteShown?: boolean
 }
 
@@ -370,9 +370,9 @@ async function deliver($: Engine, relay: Relay, key: string, sessionId: string, 
 }
 
 /**
- * Writes a held note in full to the transcript: it is off the band already,
- * so this is where the person still sees it. The expanded setting writes it
- * whole, as it does for a note that reached the main agent.
+ * Writes a held note itself to the transcript: it is off the band already,
+ * so this is where the person still sees it. It is cut as a note that reached
+ * the main agent would be, at 8,000 characters with the expanded setting.
  */
 function showInstead($: Engine, relay: Relay, note: ReviewerNote, reason: string): void {
   warn($, relay, 'held-not-sent', `a note held until Claude's reply ended was not added to the conversation (${reason}); it is shown here instead.`, { isPerNote: true })
@@ -401,7 +401,7 @@ async function flush($: Engine, relay: Relay): Promise<void> {
   }
   if (notes.length === 0) return
 
-  // A held note that misses the deadline is shown in full by showInstead, so
+  // A held note that misses the deadline is written out by showInstead, so
   // its late receipt names it without writing it out again.
   const limit = deadline($)
   const pending = notes.map(note => ({ note, row: appendRow($, note, noteMax(relay)) }))

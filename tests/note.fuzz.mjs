@@ -108,8 +108,10 @@ test('cleaned text is cut to the note limit', () => {
 
 test('cleaned text is cut to the expanded limit', () => {
   fc.assert(
-    fc.property(fc.array(text, { maxLength: 4 }).map(parts => parts.join('').repeat(40)), value => {
-      assert.ok(Array.from(cleanText(value, EXPANDED_NOTE_CHARS)).length <= EXPANDED_NOTE_CHARS + 2)
+    fc.property(fc.array(text, { minLength: 1, maxLength: 4 }).map(parts => `${parts.join('')}x`.repeat(9000)), value => {
+      const cleaned = Array.from(cleanText(value, EXPANDED_NOTE_CHARS))
+      assert.ok(cleaned.length <= EXPANDED_NOTE_CHARS + 2)
+      assert.ok(cleaned.length > MAX_NOTE_CHARS)
     }),
     { numRuns: 300 },
   )

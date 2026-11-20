@@ -8,8 +8,9 @@
   setting raises the cut for the copy Claude reads, not only the transcript's.
 - Dropping a run of joiners or variation selectors after ASCII takes time in proportion to the run, not its
   square.
-- A note with hundreds of thousands of backtick runs is fenced instead of failing with
-  `Maximum call stack size exceeded` and staying on the band.
+- The fence is sized without passing every backtick run to `Math.max` as an argument, which failed with
+  `Maximum call stack size exceeded` on an uncut note with hundreds of thousands of them and left it on the
+  band.
 - `log` mode follows `receipt` too: each note it writes is cut at 1,500 characters, or 8,000 with
   `expanded`, the same as a held note it shows when the relay loads.
 - A held note shown in the transcript because its append missed the deadline is not written out a second
