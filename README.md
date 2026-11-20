@@ -242,8 +242,8 @@ and the tag, note and explanation together are cut to 1,500 characters on a char
 same text the main agent read, before that copy was fenced and its envelope-like tags escaped. Then the `<`
 (or a fullwidth or small one) of a tag named like a conversation envelope, role, tool call or harness block
 becomes `&lt;`, whatever spaces, slashes, joiners or variation selectors stand between it and the name, so
-the note could not open or close one even if a later release wrapped appended rows. That is any name, in any case, with a `-`, `_` or `:` after its first letter
-(`system-reminder`, `function_calls`, `claude_md`, `antml:invoke`), and a list of single words such as
+the note could not open or close one even if a later release wrapped appended rows. That is any name, in any
+case, with a `-`, `_` or `:` after its first letter (`system-reminder`, `function_calls`, `claude_md`, `antml:invoke`), and a list of single words such as
 `system`, `user`, `assistant`, `document`, `invoke`, `function`, `parameter`, `result`, `stdout`, `channel`,
 `env` and `memory`. The name is read in its NFKC form, so one spelled in fullwidth, mathematical or other
 compatibility letters counts as the name it reads as. Other tags, such as `<T>`, `<div>` or `<systemd>`, are
