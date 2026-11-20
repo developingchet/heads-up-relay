@@ -241,8 +241,7 @@ ASCII is dropped too, since it joins nothing there and could hide a tag); runs o
 and the tag, note and explanation together are cut to 1,500 characters on a character boundary, ending in
 ` …`, or to 8,000 with `receipt: expanded`. The same cut applies to the transcript's copy, so it shows the
 same text the main agent read, before that copy was fenced and its envelope-like tags escaped, laid out
-one transcript entry per line as described below. Then the `<`
-(or a fullwidth or small one) of a tag named like a conversation envelope, role, tool call or harness block
+one transcript entry per line as described below. Then the `<` (or a fullwidth or small one) of a tag named like a conversation envelope, role, tool call or harness block
 becomes `&lt;`, whatever spaces, slashes, joiners or variation selectors stand between it and the name, so
 the note could not open or close one even if a later release wrapped appended rows. That is any name, in any
 case, with a `-`, `_` or `:` after its first letter (`system-reminder`, `function_calls`, `claude_md`,

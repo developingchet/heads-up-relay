@@ -265,8 +265,8 @@ const pieces = (line: string, max: number): string[] => {
  * The note as transcript entries, one per line, each marked so a line in the
  * note cannot pass for one the relay wrote. A line too long for one entry
  * goes on in the next, and a note that would take more than MAX_LOG_ENTRIES
- * entries ends in a marked `…`. The expanded receipt passes `EXPANDED_NOTE_CHARS`, the cut
- * the main agent's copy gets too.
+ * entries ends in a marked `…`. The expanded receipt passes
+ * `EXPANDED_NOTE_CHARS`, the cut the main agent's copy gets too.
  */
 export const transcriptLines = (note: ReviewerNote, max = MAX_NOTE_CHARS): string[] => {
   const lines = cleanText(logText(note), max)
