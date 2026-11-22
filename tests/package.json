@@ -4,6 +4,6 @@
   "description": "Packages for the property-based tests in note.fuzz.js, run with Node outside Claude Code's test kit.",
   "type": "module",
   "devDependencies": {
-    "fast-check": "4.10.2"
+    "fast-check": "4.10.3"
   }
 }
