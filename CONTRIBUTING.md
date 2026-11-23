@@ -1,7 +1,8 @@
 # Contributing
 
 Issues and pull requests are welcome. For security problems, follow [SECURITY.md](SECURITY.md) instead of
-opening an issue.
+opening an issue. Coding agents should also read [AGENTS.md](AGENTS.md) for the repository layout,
+working commands and boundaries. Usage questions belong in [SUPPORT.md](SUPPORT.md).
 
 ## Making a change
 

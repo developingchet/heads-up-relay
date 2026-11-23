@@ -2,6 +2,14 @@ name: Feature request
 description: Suggest a change to how notes are relayed
 labels: [enhancement]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include exploit details or a security vulnerability in a feature
+        request. Use
+        [private vulnerability reporting](https://github.com/developingchet/heads-up-relay/security/advisories/new)
+        for those reports.
+
   - type: textarea
     id: problem
     attributes:
@@ -18,3 +26,11 @@ body:
     id: alternatives
     attributes:
       label: Alternatives considered
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and trade-offs
+      description: Effects on note framing, the reviewer boundary, the pinned Claude Code release or upgrade paths
+    validations:
+      required: false

@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Usage Questions and Setup Help
+    url: https://github.com/developingchet/heads-up-relay/blob/main/SUPPORT.md
+    about: Start here for usage questions, reviewer eligibility and setup help
   - name: Security vulnerability
     url: https://github.com/developingchet/heads-up-relay/security/advisories/new
     about: Report security problems privately, not as a public issue.
