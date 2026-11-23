@@ -3,3 +3,8 @@ node_modules/
 .DS_Store
 *.log
 upstream-check/
+
+# Local agent instruction files (never committed)
+CLAUDE.md
+CLAUDE.local.md
+.claude/

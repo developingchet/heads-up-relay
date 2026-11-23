@@ -15,15 +15,19 @@ Please include:
 - the `mode` it ran in, and how it was loaded (installed or `--plugin-dir`)
 - steps to reproduce, and the impact you expect
 
-GitHub keeps the report confidential until a fix is released.
+GitHub keeps the report confidential until the advisory is published.
 
 ## Response timeline
+
+These are targets, not guarantees:
 
 - Acknowledgement within 3 business days.
 - A status update within 7 business days.
 - A fix within 30 days of a confirmed reproduction. Critical issues (CVSS 9.0 or higher) are expedited on a best-effort basis.
 
 Disclosure is coordinated with the reporter, who is credited unless they prefer otherwise.
+
+Reproduce a problem only in a Claude Code session you own or are authorized to test, with the built-in reviewer available to that session. Do not include real conversation text, reviewer notes or transcripts from other people in a report, and do not change another account's policy or settings to test the relay. Reports made in good faith within this scope will not be treated as a violation of this policy.
 
 ## Scope
 

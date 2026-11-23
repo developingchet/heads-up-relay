@@ -470,10 +470,16 @@ reader to judge, since the agent does not say what it weighed.
 A turn that runs a long string of tool calls one at a time, and makes choices nobody asked about,
 is the most likely to draw a note.
 
+## Support
+
+For usage questions and setup help, see [SUPPORT.md](SUPPORT.md) or open a Question / Support issue. Report
+bugs through the issue forms, security problems privately as [SECURITY.md](SECURITY.md) describes, and
+problems in Claude Code or the built-in reviewer upstream.
+
 ## Contributing and security
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Report security problems privately, as [SECURITY.md](SECURITY.md)
-describes.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) for the guide for coding agents. Report
+security problems privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## License
 

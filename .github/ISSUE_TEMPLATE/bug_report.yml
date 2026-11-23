@@ -5,7 +5,12 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. For security problems, use the Security tab instead (see SECURITY.md).
+        Thanks for the report. For a usage question, see
+        [SUPPORT.md](https://github.com/developingchet/heads-up-relay/blob/main/SUPPORT.md).
+
+        Do not report security vulnerabilities here. Use
+        [private vulnerability reporting](https://github.com/developingchet/heads-up-relay/security/advisories/new).
+
         Notes and transcripts can quote your code and conversation: remove anything private before pasting.
   - type: input
     id: version
@@ -62,3 +67,11 @@ body:
       label: Transcript lines and debug log
       description: The `heads-up-relay:` lines from the transcript, and its lines from a `--debug` session's log.
       render: text
+
+  - type: checkboxes
+    id: sanitized
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed code, conversation text and other private content from anything I pasted
+          required: true
